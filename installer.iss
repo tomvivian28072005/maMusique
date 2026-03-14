@@ -11,7 +11,6 @@ OutputBaseFilename=maMusique-setup
 Compression=lzma2/max
 SolidCompression=yes
 PrivilegesRequired=lowest
-SetupIconFile=
 WizardStyle=modern
 DisableProgramGroupPage=yes
 
