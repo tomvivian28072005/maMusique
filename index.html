@@ -4578,13 +4578,18 @@
                   updateDynamicBg(track.id, null);
                 }
               } else {
-                resetPlayerCover();
-                updateDynamicBg(saved.id, null);
+                // Le morceau n'existe plus en DB — cacher le player
+                document.getElementById('player').classList.add('hidden');
+                activeTrackId = null;
+                activeFilePath = '';
+                localStorage.removeItem('maMusique_lastTrack');
               }
             })
             .catch(() => {
-              resetPlayerCover();
-              updateDynamicBg(saved.id, null);
+              // Pas de connexion — cacher le player par sécurité
+              document.getElementById('player').classList.add('hidden');
+              activeTrackId = null;
+              activeFilePath = '';
             });
         }
       } catch (e) { }

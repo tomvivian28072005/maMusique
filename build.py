@@ -1,5 +1,5 @@
 """
-Script de build — Crée le dossier distribuable maMusique.
+Script de build — Crée le dossier distribuable + installeur maMusique.
 Usage: python build.py
 """
 import subprocess
@@ -18,7 +18,7 @@ def main():
     print("=== Build maMusique ===\n")
 
     # 1. PyInstaller
-    print("[1/4] PyInstaller...")
+    print("[1/5] PyInstaller...")
     subprocess.run([
         sys.executable, "-m", "PyInstaller",
         "--noconfirm",
@@ -45,7 +45,6 @@ def main():
         launcher.rename(final_exe)
 
     # Copier les fichiers data de _internal/ vers la racine du dist
-    # (main.py les cherche relativement au cwd = dossier du .exe)
     internal = DIST / "_internal"
     for name in ("index.html", "database.py", "logo.svg"):
         src = internal / name
@@ -54,7 +53,7 @@ def main():
             print(f"  {name} copié vers racine")
 
     # 2. Copier les outils externes dans bin/
-    print("[2/4] Copie des outils externes dans bin/...")
+    print("[2/5] Copie des outils externes dans bin/...")
     bin_dir = DIST / "bin"
     bin_dir.mkdir(exist_ok=True)
 
@@ -78,17 +77,40 @@ def main():
         shutil.copy2(NODE_EXE, bin_dir / "node.exe")
         print(f"  node.exe copié")
 
-    # 3. Créer les dossiers vides nécessaires
-    print("[3/4] Création des dossiers...")
+    # 3. Créer les dossiers vides + nettoyer les fichiers perso
+    print("[3/5] Nettoyage et préparation...")
     (DIST / "downloads").mkdir(exist_ok=True)
     (DIST / "covers").mkdir(exist_ok=True)
 
-    # 4. Résumé
+    # Supprimer les fichiers qui ne doivent pas être distribués
+    for f in ("music.db", "maMusique.log", "cookies.txt"):
+        p = DIST / f
+        if p.exists():
+            p.unlink()
+            print(f"  {f} supprimé du build")
+
+    # 4. Créer l'installeur Inno Setup
+    print("[4/5] Création de l'installeur...")
+    iss_path = ROOT / "installer.iss"
+    if not iss_path.exists():
+        print("  ATTENTION: installer.iss introuvable, installeur non créé")
+    else:
+        iscc = Path(r"C:\Users\tomvi\AppData\Local\Programs\Inno Setup 6\ISCC.exe")
+        if not iscc.exists():
+            print("  ATTENTION: Inno Setup non installé, installeur non créé")
+            print("  Installe-le via: winget install JRSoftware.InnoSetup")
+        else:
+            subprocess.run([str(iscc), str(iss_path)], check=True)
+            print("  Installeur créé !")
+
+    # 5. Résumé
     total_size = sum(f.stat().st_size for f in DIST.rglob("*") if f.is_file())
-    print(f"\n[4/4] Build terminé !")
+    print(f"\n[5/5] Build terminé !")
     print(f"  Dossier : {DIST}")
     print(f"  Taille totale : {total_size // 1024 // 1024} Mo")
-    print(f"\nPour tester : lance {final_exe}")
+    installer = ROOT / "dist" / "maMusique-setup.exe"
+    if installer.exists():
+        print(f"  Installeur : {installer} ({installer.stat().st_size // 1024 // 1024} Mo)")
 
 
 if __name__ == "__main__":
