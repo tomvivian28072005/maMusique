@@ -18,6 +18,11 @@ cookies.txt
 # Environnement
 .env
 
+# Build PyInstaller
+dist/
+build/
+*.spec
+
 # OS
 Thumbs.db
 Desktop.ini

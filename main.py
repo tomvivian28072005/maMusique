@@ -38,11 +38,29 @@ from database import (
     add_track_to_playlist, remove_track_from_playlist, get_playlist_tracks,
 )
 
-# Chemin absolu vers yt-dlp du venv
-YTDLP_BIN = str(Path(__file__).parent / "venv" / "Scripts" / "yt-dlp.exe")
-FFMPEG_DIR = r"C:\Users\tomvi\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.0.1-full_build\bin"
-NODE_PATH = r"C:\jeu + application\utilitaire\programation\node.exe"
-COOKIES_FILE = str(Path(__file__).parent / "cookies.txt")
+# Répertoire de base (compatible PyInstaller)
+import sys
+_BASE = Path(os.path.dirname(sys.executable)) if getattr(sys, 'frozen', False) else Path(__file__).parent
+
+# Outils externes — cherche d'abord dans bin/ local, sinon chemins de dev
+_BIN_DIR = _BASE / "bin"
+
+def _find_bin(name, dev_fallback):
+    """Cherche un exécutable dans bin/ puis dans le PATH, sinon fallback dev."""
+    local = _BIN_DIR / name
+    if local.exists():
+        return str(local)
+    # Chercher dans le PATH système
+    import shutil
+    found = shutil.which(name)
+    if found:
+        return found
+    return dev_fallback
+
+YTDLP_BIN = _find_bin("yt-dlp.exe", str(_BASE / "venv" / "Scripts" / "yt-dlp.exe"))
+FFMPEG_DIR = str(_BIN_DIR) if (_BIN_DIR / "ffmpeg.exe").exists() else r"C:\Users\tomvi\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.0.1-full_build\bin"
+NODE_PATH = _find_bin("node.exe", r"C:\jeu + application\utilitaire\programation\node.exe")
+COOKIES_FILE = str(_BASE / "cookies.txt")
 
 DOWNLOADS_DIR = Path("downloads")
 DOWNLOADS_DIR.mkdir(exist_ok=True)
