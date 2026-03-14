@@ -1,5 +1,5 @@
 """
-maMusique — Launcher
+Clom — Launcher
 Démarre le serveur FastAPI et ouvre le navigateur automatiquement.
 """
 import sys

@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>maMusique</title>
+  <title>Clom</title>
   <link rel="icon" type="image/svg+xml" href="/logo.svg" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -338,6 +338,54 @@
       border: none;
       cursor: pointer;
     }
+
+    /* ── Onboarding ── */
+    .onboarding-overlay {
+      position: fixed; inset: 0; z-index: 9999;
+      background: rgba(0,0,0,0.75);
+      display: flex; align-items: center; justify-content: center;
+      animation: obFadeIn 0.3s ease;
+    }
+    @keyframes obFadeIn { from { opacity: 0 } to { opacity: 1 } }
+    .onboarding-card {
+      background: #1a1a24; border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px; padding: 40px 36px 32px;
+      max-width: 460px; width: 90%; text-align: center;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+      animation: obSlideUp 0.35s ease;
+    }
+    @keyframes obSlideUp { from { transform: translateY(30px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+    .onboarding-icon { font-size: 3rem; margin-bottom: 16px; }
+    .onboarding-title { font-size: 1.5rem; font-weight: 700; color: #fff; margin-bottom: 8px; }
+    .onboarding-text { font-size: 0.95rem; color: #94a3b8; line-height: 1.6; margin-bottom: 28px; }
+    .onboarding-text strong { color: #e2e8f0; }
+    .onboarding-dots { display: flex; justify-content: center; gap: 8px; margin-bottom: 24px; }
+    .onboarding-dot { width: 8px; height: 8px; border-radius: 50%; background: #334155; transition: background 0.2s; }
+    .onboarding-dot.active { background: var(--accent); }
+    .onboarding-btns { display: flex; gap: 12px; justify-content: center; }
+    .onboarding-btn {
+      padding: 10px 28px; border-radius: 12px; font-size: 0.9rem; font-weight: 600;
+      cursor: pointer; border: none; font-family: 'Outfit', sans-serif; transition: all 0.15s;
+    }
+    .onboarding-btn-skip { background: transparent; color: #64748b; }
+    .onboarding-btn-skip:hover { color: #94a3b8; }
+    .onboarding-btn-next { background: var(--accent); color: #fff; }
+    .onboarding-btn-next:hover { filter: brightness(1.15); transform: translateY(-1px); }
+    .onboarding-highlight {
+      position: relative; z-index: 10000;
+      box-shadow: 0 0 0 4px var(--accent), 0 0 24px rgba(37,99,235,0.4);
+      border-radius: 12px;
+      animation: obPulse 1.5s ease infinite;
+    }
+    @keyframes obPulse { 0%,100% { box-shadow: 0 0 0 4px var(--accent), 0 0 24px rgba(37,99,235,0.4) } 50% { box-shadow: 0 0 0 6px var(--accent), 0 0 32px rgba(37,99,235,0.6) } }
+    .onboarding-overlay .onboarding-card { position: relative; z-index: 10001; }
+    .onboarding-arrow {
+      position: fixed; z-index: 10001;
+      color: var(--accent); font-size: 2rem;
+      animation: obBounce 1s ease infinite;
+      pointer-events: none;
+    }
+    @keyframes obBounce { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-8px) } }
   </style>
 </head>
 
@@ -359,7 +407,7 @@
         </button>
         <div class="p-6 flex items-center justify-between sidebar-logo-container">
         <div class="flex items-center gap-3">
-          <span class="font-bold text-lg tracking-tight text-white sidebar-content">maMusique</span>
+          <span class="font-bold text-lg tracking-tight text-white sidebar-content">Clom</span>
         </div>
         </div>
 
@@ -759,14 +807,23 @@
   </div>
 
   <!-- Update banner -->
-  <div id=”update-banner” class=”hidden fixed top-4 right-4 z-50 glass rounded-xl px-4 py-3 border border-white/10 shadow-xl flex items-center gap-3 max-w-sm”>
-    <svg class=”w-5 h-5 text-brand-400 flex-shrink-0” fill=”none” stroke=”currentColor” stroke-width=”2” viewBox=”0 0 24 24”><path stroke-linecap=”round” stroke-linejoin=”round” d=”M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12m0 0l-4-4m4 4l4-4”/></svg>
-    <p class=”text-sm text-gray-300”>Nouvelle version <strong class=”update-version text-white”>—</strong> disponible !
-      <a class=”update-link text-brand-400 hover:underline ml-1” href=”#” target=”_blank”>Télécharger</a>
-    </p>
-    <button onclick=”this.parentElement.classList.add('hidden')” class=”text-gray-500 hover:text-white transition flex-shrink-0”>
-      <svg class=”w-4 h-4” fill=”none” stroke=”currentColor” stroke-width=”2” viewBox=”0 0 24 24”><path stroke-linecap=”round” stroke-linejoin=”round” d=”M6 18L18 6M6 6l12 12”/></svg>
-    </button>
+  <div id=”update-banner” class=”hidden fixed top-4 right-4 z-50 glass rounded-2xl px-5 py-4 border border-brand-500/30 shadow-2xl max-w-sm”>
+    <div class=”flex items-start gap-3”>
+      <div class=”w-10 h-10 rounded-xl bg-brand-600/20 flex items-center justify-center flex-shrink-0 mt-0.5”>
+        <svg class=”w-5 h-5 text-brand-400” fill=”none” stroke=”currentColor” stroke-width=”2” viewBox=”0 0 24 24”><path stroke-linecap=”round” stroke-linejoin=”round” d=”M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12m0 0l-4-4m4 4l4-4”/></svg>
+      </div>
+      <div class=”flex-1 min-w-0”>
+        <p class=”text-sm font-semibold text-white mb-1”>Mise à jour disponible</p>
+        <p class=”text-xs text-gray-400 mb-3”>La version <strong class=”update-version text-brand-400”>—</strong> est disponible.</p>
+        <div class=”flex items-center gap-2”>
+          <button onclick=”startUpdate(this)” class=”update-download px-4 py-1.5 rounded-lg text-xs font-bold bg-brand-600 hover:bg-brand-700 text-white transition”>Mettre à jour</button>
+          <a class=”update-link text-xs text-gray-500 hover:text-gray-300 transition” href=”#” target=”_blank”>Notes de version</a>
+        </div>
+      </div>
+      <button onclick=”this.closest('#update-banner').classList.add('hidden')” class=”text-gray-600 hover:text-white transition flex-shrink-0”>
+        <svg class=”w-4 h-4” fill=”none” stroke=”currentColor” stroke-width=”2” viewBox=”0 0 24 24”><path stroke-linecap=”round” stroke-linejoin=”round” d=”M6 18L18 6M6 6l12 12”/></svg>
+      </button>
+    </div>
   </div>
 
   <!-- â”€â”€ PLAYER (Modern Floating Glass) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
@@ -1314,7 +1371,7 @@
         playlistSearchQuery = '';
         updatePlaylistCoverDisplay();
         fetchPlaylistTracks();
-        localStorage.setItem('maMusique_lastPlaylistId', data.id);
+        localStorage.setItem('Clom_lastPlaylistId', data.id);
       } else if (view === 'library') {
         fetchTracks();
       }
@@ -3244,7 +3301,7 @@
       savedVolume = val;
       applyVolume();
       updateVolumeIcon();
-      localStorage.setItem('maMusique_volume', val);
+      localStorage.setItem('Clom_volume', val);
     }
 
     function toggleMute() {
@@ -4518,12 +4575,12 @@
 
     // â”€â”€ LocalStorage persistence â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     function saveLastTrack(id, path, title, artist, volumeCoeff, startTime, endTime) {
-      localStorage.setItem('maMusique_lastTrack', JSON.stringify({ id, path, title, artist, volumeCoeff, startTime, endTime }));
+      localStorage.setItem('Clom_lastTrack', JSON.stringify({ id, path, title, artist, volumeCoeff, startTime, endTime }));
     }
 
     function restoreLastState() {
       // Restore volume
-      const vol = localStorage.getItem('maMusique_volume');
+      const vol = localStorage.getItem('Clom_volume');
       if (vol !== null) {
         savedVolume = parseFloat(vol);
         document.getElementById('volume-slider').value = savedVolume;
@@ -4531,7 +4588,7 @@
       }
       // Restore last track in player (without playing)
       try {
-        const saved = JSON.parse(localStorage.getItem('maMusique_lastTrack'));
+        const saved = JSON.parse(localStorage.getItem('Clom_lastTrack'));
         if (saved) {
           // Show player immediately with cached data
           activeTrackId = saved.id;
@@ -4582,7 +4639,7 @@
                 document.getElementById('player').classList.add('hidden');
                 activeTrackId = null;
                 activeFilePath = '';
-                localStorage.removeItem('maMusique_lastTrack');
+                localStorage.removeItem('Clom_lastTrack');
               }
             })
             .catch(() => {
@@ -4610,7 +4667,14 @@
           const banner = document.getElementById('update-banner');
           if (banner) {
             banner.querySelector('.update-version').textContent = `v${latest}`;
+            // Lien vers les notes de version
             banner.querySelector('.update-link').href = remote.html_url || '#';
+            // Lien direct vers le .exe
+            const setupAsset = (remote.assets || []).find(a => a.name && a.name.endsWith('-setup.exe'));
+            const downloadBtn = banner.querySelector('.update-download');
+            if (downloadBtn) {
+              downloadBtn.href = setupAsset ? setupAsset.browser_download_url : (remote.html_url || '#');
+            }
             banner.classList.remove('hidden');
           }
         }
@@ -4625,7 +4689,7 @@
       checkForUpdates();
 
       // Restore last playlist or default to first
-      const lastPlId = parseInt(localStorage.getItem('maMusique_lastPlaylistId'));
+      const lastPlId = parseInt(localStorage.getItem('Clom_lastPlaylistId'));
       let target = sidebarPlaylistsCache.find(p => p.id === lastPlId);
       if (!target && sidebarPlaylistsCache.length > 0) target = sidebarPlaylistsCache[0];
 
@@ -4645,6 +4709,150 @@
     document.getElementById('search-dl-artist').addEventListener('keydown', e => {
       if (e.key === 'Enter') startSearchDownload();
     });
+
+    // ── Auto-update ──────────────────────────────────
+    async function startUpdate(btn) {
+      btn.disabled = true;
+      btn.textContent = 'Téléchargement...';
+      try {
+        const res = await fetch('/api/update', { method: 'POST' });
+        if (!res.ok) throw new Error('Erreur serveur');
+        btn.textContent = 'Installation...';
+        // Le serveur va s'arrêter, la page se déconnectera
+        // On affiche un message pour l'utilisateur
+        setTimeout(() => {
+          document.body.innerHTML = `
+            <div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#050508;color:#e2e8f0;font-family:Outfit,sans-serif;text-align:center">
+              <div>
+                <div style="font-size:3rem;margin-bottom:16px">&#128260;</div>
+                <h2 style="font-size:1.5rem;font-weight:700;margin-bottom:8px">Mise à jour en cours...</h2>
+                <p style="color:#94a3b8">L'application va redémarrer automatiquement.</p>
+              </div>
+            </div>`;
+        }, 500);
+      } catch(e) {
+        btn.disabled = false;
+        btn.textContent = 'Mettre à jour';
+        alert('La mise à jour a échoué. Vérifie ta connexion internet.');
+      }
+    }
+
+    // ── Shutdown on tab close ──────────────────────────
+    window.addEventListener('pagehide', () => {
+      navigator.sendBeacon('/api/shutdown');
+    });
+
+    // ── Onboarding ──────────────────────────────────
+    const onboardingSteps = [
+      {
+        icon: '&#128075;',
+        title: 'Bienvenue !',
+        text: 'Ton lecteur de musique personnel, <strong>gratuit et sans pub</strong>.<br>On va te montrer comment ça marche en 30 secondes.',
+        action() {}
+      },
+      {
+        icon: '&#128218;',
+        title: 'La barre latérale',
+        text: 'À gauche, tu retrouves <strong>tes playlists</strong>.<br>En bas, le bouton <strong>Bibliothèque</strong> affiche tous tes morceaux.',
+        highlight: 'sidebar',
+        highlightSecondary: 'library-btn-sidebar',
+        action() {
+          const sb = document.getElementById('sidebar');
+          if (sb && sb.classList.contains('collapsed')) toggleSidebar();
+        }
+      },
+      {
+        icon: '&#127925;',
+        title: 'Ajoute ta musique',
+        text: 'Dans la Bibliothèque, tu as <strong>4 façons</strong> d\'ajouter des morceaux :<br><br>' +
+          '<strong>Ajouter</strong> — cherche par titre/artiste<br>' +
+          '<strong>URL</strong> — colle un lien YouTube<br>' +
+          '<strong>CSV</strong> — importe une liste Deezer/Spotify<br>' +
+          '<strong>Dossier</strong> — ajoute des MP3 depuis ton PC',
+        highlight: 'sidebar-search-btn',
+        action() { navigateTo('library'); }
+      },
+      {
+        icon: '&#127926;',
+        title: 'Crée tes playlists',
+        text: 'Dans la barre latérale, clique sur <strong>+ Créer une playlist</strong>.<br>Tu pourras y ajouter tes morceaux avec le menu <strong>3 points</strong> de chaque titre.',
+        highlight: 'sidebar',
+        action() {}
+      },
+      {
+        icon: '&#127911;',
+        title: 'C\'est parti !',
+        text: 'Clique sur un morceau pour le lancer.<br>Les contrôles de lecture apparaissent en bas.<br><br><strong>Bonne écoute !</strong>',
+        action() {}
+      }
+    ];
+
+    let onboardingStep = 0;
+
+    function clearOnboardingHighlights() {
+      document.querySelectorAll('.onboarding-highlight').forEach(el => el.classList.remove('onboarding-highlight'));
+      document.querySelectorAll('.onboarding-arrow').forEach(el => el.remove());
+    }
+
+    function renderOnboarding() {
+      const overlay = document.getElementById('onboarding-overlay');
+      if (!overlay) return;
+      clearOnboardingHighlights();
+      const s = onboardingSteps[onboardingStep];
+      const isLast = onboardingStep === onboardingSteps.length - 1;
+
+      // Execute step action (open sidebar, navigate, etc.)
+      if (s.action) s.action();
+
+      // Highlight target element
+      if (s.highlight) {
+        const el = document.getElementById(s.highlight);
+        if (el) el.classList.add('onboarding-highlight');
+      }
+      if (s.highlightSecondary) {
+        const el2 = document.getElementById(s.highlightSecondary);
+        if (el2) el2.classList.add('onboarding-highlight');
+      }
+
+      const dots = onboardingSteps.map((_, i) =>
+        `<div class="onboarding-dot ${i === onboardingStep ? 'active' : ''}"></div>`
+      ).join('');
+      overlay.innerHTML = `
+        <div class="onboarding-card">
+          <div class="onboarding-icon">${s.icon}</div>
+          <div class="onboarding-title">${s.title}</div>
+          <div class="onboarding-text">${s.text}</div>
+          <div class="onboarding-dots">${dots}</div>
+          <div class="onboarding-btns">
+            <button class="onboarding-btn onboarding-btn-skip" onclick="closeOnboarding()">Passer</button>
+            <button class="onboarding-btn onboarding-btn-next" onclick="${isLast ? 'closeOnboarding()' : 'nextOnboarding()'}">
+              ${isLast ? 'C\'est compris !' : 'Suivant'}
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function nextOnboarding() {
+      onboardingStep++;
+      renderOnboarding();
+    }
+
+    function closeOnboarding() {
+      clearOnboardingHighlights();
+      const overlay = document.getElementById('onboarding-overlay');
+      if (overlay) overlay.remove();
+      localStorage.setItem('Clom_onboardingDone', 'true');
+    }
+
+    // Show onboarding on first launch
+    if (!localStorage.getItem('Clom_onboardingDone')) {
+      const overlay = document.createElement('div');
+      overlay.id = 'onboarding-overlay';
+      overlay.className = 'onboarding-overlay';
+      document.body.appendChild(overlay);
+      renderOnboarding();
+    }
   </script>
 </body>
 

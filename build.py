@@ -1,5 +1,5 @@
 """
-Script de build — Crée le dossier distribuable + installeur maMusique.
+Script de build — Crée le dossier distribuable + installeur Clom.
 Usage: python build.py
 """
 import subprocess
@@ -8,14 +8,14 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).parent
-DIST = ROOT / "dist" / "maMusique"
+DIST = ROOT / "dist" / "Clom"
 
 # Chemins des outils externes (à adapter si besoin)
 FFMPEG_DIR = Path(r"C:\Users\tomvi\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.0.1-full_build\bin")
 NODE_EXE = Path(r"C:\jeu + application\utilitaire\programation\node.exe")
 
 def main():
-    print("=== Build maMusique ===\n")
+    print("=== Build Clom ===\n")
 
     # 1. PyInstaller
     print("[1/5] PyInstaller...")
@@ -23,7 +23,8 @@ def main():
         sys.executable, "-m", "PyInstaller",
         "--noconfirm",
         "--onedir",
-        "--name", "maMusique",
+        "--noconsole",
+        "--name", "Clom",
         "--icon", "NONE",  # TODO: ajouter une icône .ico plus tard
         "--add-data", "index.html;.",
         "--add-data", "database.py;.",
@@ -38,9 +39,9 @@ def main():
         "launcher.py",
     ], check=True)
 
-    # PyInstaller crée dist/maMusique/launcher.exe, on renomme
+    # PyInstaller crée dist/Clom/launcher.exe, on renomme
     launcher = DIST / "launcher.exe"
-    final_exe = DIST / "maMusique.exe"
+    final_exe = DIST / "Clom.exe"
     if launcher.exists() and not final_exe.exists():
         launcher.rename(final_exe)
 
@@ -57,11 +58,13 @@ def main():
     bin_dir = DIST / "bin"
     bin_dir.mkdir(exist_ok=True)
 
-    # yt-dlp
-    ytdlp_src = ROOT / "venv" / "Scripts" / "yt-dlp.exe"
+    # yt-dlp (standalone, pas le lanceur pip du venv)
+    ytdlp_src = ROOT / "bin_standalone" / "yt-dlp.exe"
+    if not ytdlp_src.exists():
+        ytdlp_src = ROOT / "venv" / "Scripts" / "yt-dlp.exe"  # fallback
     if ytdlp_src.exists():
         shutil.copy2(ytdlp_src, bin_dir / "yt-dlp.exe")
-        print(f"  yt-dlp.exe copié")
+        print(f"  yt-dlp.exe copié ({ytdlp_src.stat().st_size // 1024 // 1024} Mo) depuis {ytdlp_src}")
 
     # ffmpeg + ffprobe
     for name in ("ffmpeg.exe", "ffprobe.exe"):
@@ -83,7 +86,7 @@ def main():
     (DIST / "covers").mkdir(exist_ok=True)
 
     # Supprimer les fichiers qui ne doivent pas être distribués
-    for f in ("music.db", "maMusique.log", "cookies.txt"):
+    for f in ("music.db", "Clom.log", "cookies.txt"):
         p = DIST / f
         if p.exists():
             p.unlink()
@@ -108,7 +111,7 @@ def main():
     print(f"\n[5/5] Build terminé !")
     print(f"  Dossier : {DIST}")
     print(f"  Taille totale : {total_size // 1024 // 1024} Mo")
-    installer = ROOT / "dist" / "maMusique-setup.exe"
+    installer = ROOT / "dist" / "Clom-setup.exe"
     if installer.exists():
         print(f"  Installeur : {installer} ({installer.stat().st_size // 1024 // 1024} Mo)")
 

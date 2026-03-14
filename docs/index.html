@@ -3,256 +3,400 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>maMusique — Lecteur musical personnel</title>
+  <title>Clom — Ta musique, ton player</title>
   <link rel="icon" type="image/svg+xml" href="logo.svg">
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
       font-family: 'Outfit', sans-serif;
-      background: #0a0f1a;
+      background: #050508;
       color: #e2e8f0;
       min-height: 100vh;
       overflow-x: hidden;
     }
 
-    /* Fond subtil */
-    body::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background: radial-gradient(ellipse at 30% 20%, rgba(37, 99, 235, 0.08) 0%, transparent 60%),
-                  radial-gradient(ellipse at 70% 80%, rgba(14, 165, 233, 0.05) 0%, transparent 60%);
-      pointer-events: none;
-      z-index: -1;
-    }
-
-    .container {
-      max-width: 720px;
-      margin: 0 auto;
+    /* ── Hero ── */
+    .hero {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
       padding: 60px 24px;
       text-align: center;
     }
 
-    /* Logo */
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 50% 0%, rgba(37, 99, 235, 0.15) 0%, transparent 50%),
+        radial-gradient(ellipse at 20% 80%, rgba(37, 99, 235, 0.06) 0%, transparent 40%),
+        radial-gradient(ellipse at 80% 60%, rgba(14, 165, 233, 0.04) 0%, transparent 40%);
+      pointer-events: none;
+    }
+
+    .hero-content { position: relative; z-index: 1; max-width: 640px; }
+
     .logo {
-      width: 80px;
-      height: 80px;
-      margin: 0 auto 32px;
+      width: 88px; height: 88px;
+      margin-bottom: 32px;
+      filter: drop-shadow(0 8px 24px rgba(37, 99, 235, 0.3));
     }
 
     h1 {
-      font-size: 2.5rem;
-      font-weight: 700;
+      font-size: 4rem;
+      font-weight: 800;
       color: #fff;
-      margin-bottom: 8px;
-      letter-spacing: -0.02em;
+      letter-spacing: -0.03em;
+      line-height: 1;
+      margin-bottom: 16px;
     }
 
     .tagline {
-      font-size: 1.1rem;
+      font-size: 1.25rem;
       color: #94a3b8;
-      margin-bottom: 48px;
       font-weight: 300;
+      margin-bottom: 40px;
+      line-height: 1.5;
     }
 
-    /* Features */
-    .features {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-      margin-bottom: 56px;
-      text-align: left;
-    }
+    .tagline strong { color: #e2e8f0; font-weight: 500; }
 
-    .feature {
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid rgba(255, 255, 255, 0.06);
-      border-radius: 12px;
-      padding: 20px;
-    }
-
-    .feature-icon {
-      font-size: 1.4rem;
-      margin-bottom: 8px;
-    }
-
-    .feature h3 {
-      font-size: 0.9rem;
-      font-weight: 600;
-      color: #fff;
-      margin-bottom: 4px;
-    }
-
-    .feature p {
-      font-size: 0.8rem;
-      color: #64748b;
-      line-height: 1.4;
-    }
-
-    /* Download buttons */
-    .downloads {
+    .hero-btns {
       display: flex;
       flex-direction: column;
-      gap: 14px;
       align-items: center;
+      gap: 12px;
       margin-bottom: 48px;
     }
 
-    .dl-btn {
-      display: flex;
+    .btn-primary {
+      display: inline-flex;
       align-items: center;
-      justify-content: center;
-      gap: 12px;
-      width: 100%;
-      max-width: 340px;
-      padding: 16px 28px;
+      gap: 10px;
+      padding: 16px 36px;
       border-radius: 14px;
       font-family: 'Outfit', sans-serif;
-      font-size: 1rem;
+      font-size: 1.05rem;
       font-weight: 600;
       text-decoration: none;
-      transition: transform 0.15s, box-shadow 0.15s;
-      cursor: pointer;
-      border: none;
-    }
-
-    .dl-btn:hover {
-      transform: translateY(-2px);
-    }
-
-    .dl-btn:active {
-      transform: scale(0.98);
-    }
-
-    .dl-btn-windows {
       background: linear-gradient(135deg, #2563eb, #1d4ed8);
       color: #fff;
-      box-shadow: 0 8px 24px rgba(37, 99, 235, 0.25);
+      box-shadow: 0 8px 32px rgba(37, 99, 235, 0.3);
+      transition: transform 0.15s, box-shadow 0.15s;
+      border: none;
+      cursor: pointer;
     }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(37, 99, 235, 0.4); }
+    .btn-primary:active { transform: scale(0.98); }
 
-    .dl-btn-windows:hover {
-      box-shadow: 0 12px 32px rgba(37, 99, 235, 0.35);
-    }
+    .btn-primary svg { width: 20px; height: 20px; }
 
-    .dl-btn-mobile {
-      background: rgba(255, 255, 255, 0.06);
-      color: #e2e8f0;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .dl-btn-mobile:hover {
-      background: rgba(255, 255, 255, 0.1);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-    }
-
-    .dl-btn svg {
-      width: 22px;
-      height: 22px;
-      flex-shrink: 0;
-    }
-
-    .dl-soon {
-      font-size: 0.7rem;
-      font-weight: 400;
+    .btn-secondary {
+      font-size: 0.85rem;
       color: #64748b;
-      margin-left: 4px;
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+    .btn-secondary:hover { color: #94a3b8; }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 100px;
+      background: rgba(37, 99, 235, 0.1);
+      border: 1px solid rgba(37, 99, 235, 0.2);
+      font-size: 0.75rem;
+      color: #60a5fa;
+      font-weight: 500;
+      margin-bottom: 24px;
     }
 
-    /* Info */
-    .info {
-      font-size: 0.8rem;
-      color: #475569;
-      line-height: 1.6;
-      max-width: 480px;
+    .hero-badge .dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #2563eb;
+      animation: pulse 2s ease infinite;
+    }
+    @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: 0.4 } }
+
+    .scroll-hint {
+      position: absolute;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #334155;
+      animation: bounce 2s ease infinite;
+    }
+    @keyframes bounce { 0%,100% { transform: translateX(-50%) translateY(0) } 50% { transform: translateX(-50%) translateY(8px) } }
+
+    /* ── Section ── */
+    section {
+      padding: 100px 24px;
+      max-width: 900px;
       margin: 0 auto;
     }
 
-    .info a {
+    .section-title {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #fff;
+      text-align: center;
+      margin-bottom: 12px;
+      letter-spacing: -0.02em;
+    }
+
+    .section-sub {
+      font-size: 1rem;
+      color: #64748b;
+      text-align: center;
+      margin-bottom: 56px;
+    }
+
+    /* ── Steps ── */
+    .steps {
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+    }
+
+    .step {
+      display: flex;
+      align-items: flex-start;
+      gap: 20px;
+      padding: 28px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.05);
+      transition: border-color 0.2s;
+    }
+    .step:hover { border-color: rgba(37,99,235,0.2); }
+
+    .step-num {
+      width: 40px; height: 40px;
+      border-radius: 12px;
+      background: rgba(37,99,235,0.12);
       color: #2563eb;
-      text-decoration: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      font-weight: 700;
+      flex-shrink: 0;
     }
 
-    .info a:hover {
-      text-decoration: underline;
+    .step h3 { font-size: 1.05rem; font-weight: 600; color: #fff; margin-bottom: 4px; }
+    .step p { font-size: 0.9rem; color: #94a3b8; line-height: 1.5; }
+
+    /* ── Features grid ── */
+    .features {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
     }
 
-    /* Responsive */
-    @media (max-width: 520px) {
-      .container { padding: 40px 20px; }
-      h1 { font-size: 2rem; }
+    .feature {
+      padding: 24px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.05);
+      text-align: center;
+    }
+
+    .feature-icon { font-size: 1.8rem; margin-bottom: 12px; }
+    .feature h3 { font-size: 0.9rem; font-weight: 600; color: #fff; margin-bottom: 4px; }
+    .feature p { font-size: 0.8rem; color: #64748b; line-height: 1.4; }
+
+    /* ── Defender warning ── */
+    .warning-box {
+      max-width: 520px;
+      margin: 0 auto;
+      padding: 20px 24px;
+      border-radius: 14px;
+      background: rgba(251, 191, 36, 0.04);
+      border: 1px solid rgba(251, 191, 36, 0.12);
+      text-align: left;
+    }
+
+    .warning-box .title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #fbbf24;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .warning-box p {
+      font-size: 0.8rem;
+      color: #94a3b8;
+      line-height: 1.5;
+    }
+
+    .warning-box strong { color: #e2e8f0; }
+
+    /* ── Footer ── */
+    footer {
+      padding: 40px 24px;
+      text-align: center;
+      border-top: 1px solid rgba(255,255,255,0.04);
+    }
+
+    footer p { font-size: 0.8rem; color: #334155; line-height: 1.8; }
+    footer a { color: #2563eb; text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    /* ── Responsive ── */
+    @media (max-width: 640px) {
+      h1 { font-size: 2.8rem; }
+      .tagline { font-size: 1.05rem; }
       .features { grid-template-columns: 1fr; }
-      .dl-btn { max-width: 100%; }
+      .step { flex-direction: column; }
+      section { padding: 60px 20px; }
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <svg class="logo" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stop-color="#2563eb"/>
-          <stop offset="100%" stop-color="#1e3a8a"/>
-        </linearGradient>
-      </defs>
-      <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#g)"/>
-      <path d="M23 17v28.4a7.6 7.6 0 1 0 4.6 7V27.4h14.2V17H23z" fill="#fff"/>
-      <circle cx="50" cy="18" r="4" fill="#0ea5e9"/>
-    </svg>
 
-    <h1>maMusique</h1>
-    <p class="tagline">Ta musique, ton player, tes playlists. Gratuit et sans pub.</p>
+  <!-- ── HERO ── -->
+  <div class="hero">
+    <div class="hero-content">
+      <div class="hero-badge">
+        <span class="dot"></span>
+        Gratuit &middot; Open source &middot; Sans pub
+      </div>
+
+      <svg class="logo" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#2563eb"/>
+            <stop offset="100%" stop-color="#1e3a8a"/>
+          </linearGradient>
+        </defs>
+        <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#g)"/>
+        <path d="M23 17v28.4a7.6 7.6 0 1 0 4.6 7V27.4h14.2V17H23z" fill="#fff"/>
+        <circle cx="50" cy="18" r="4" fill="#0ea5e9"/>
+      </svg>
+
+      <h1>Clom</h1>
+      <p class="tagline">
+        Ta musique, <strong>ton player</strong>, tes playlists.<br>
+        Tout reste sur ton PC. Rien dans le cloud.
+      </p>
+
+      <div class="hero-btns">
+        <a href="https://github.com/tomvivian28072005/maMusique/releases/latest" class="btn-primary">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 12V6.75l6-1.32v6.48L3 12zm6.41.09l8.59.08V4.5L9.41 5.58v6.51zM3 13l6 .09v6.72l-6-1.31V13zm6.41.25L18 13.2v7.8l-8.59-1.08v-6.67z"/></svg>
+          Télécharger pour Windows
+        </a>
+        <span class="btn-secondary">Windows 10/11 &middot; ~160 Mo &middot; Installation en 30 secondes</span>
+      </div>
+    </div>
+
+    <div class="scroll-hint">
+      <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 14l-7 7m0 0l-7-7"/></svg>
+    </div>
+  </div>
+
+  <!-- ── COMMENT CA MARCHE ── -->
+  <section>
+    <h2 class="section-title">Comment ça marche ?</h2>
+    <p class="section-sub">Trois étapes, et t'as ton player perso.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div>
+          <h3>Installe et lance</h3>
+          <p>Télécharge l'installeur, clique dessus, c'est prêt. Clom s'ouvre dans ton navigateur comme une vraie app.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div>
+          <h3>Ajoute tes morceaux</h3>
+          <p>Cherche par titre, colle un lien YouTube, ou importe ta bibliothèque Deezer/Spotify. Le morceau est chez toi en quelques secondes.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div>
+          <h3>Organise et écoute</h3>
+          <p>Crée tes playlists, ajoute des covers, mets en favoris. Tout est sauvegardé sur ton PC, pour toujours.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── FEATURES ── -->
+  <section>
+    <h2 class="section-title">Tout ce qu'il faut</h2>
+    <p class="section-sub">Pas de compte, pas d'abonnement, pas de pub. Juste de la musique.</p>
 
     <div class="features">
       <div class="feature">
         <div class="feature-icon">&#127925;</div>
         <h3>Player complet</h3>
-        <p>Lecture, shuffle, repeat, file d'attente. Comme Deezer ou Spotify, mais chez toi.</p>
+        <p>Lecture, shuffle, repeat, file d'attente, favoris.</p>
       </div>
       <div class="feature">
-        <div class="feature-icon">&#128228;</div>
-        <h3>Ajoute ta musique</h3>
-        <p>Colle un lien YouTube ou cherche par titre. Le morceau est dans ta bibliothèque en quelques secondes.</p>
+        <div class="feature-icon">&#128269;</div>
+        <h3>Recherche intelligente</h3>
+        <p>Tape un titre et un artiste, Clom le trouve sur YouTube.</p>
       </div>
       <div class="feature">
         <div class="feature-icon">&#127912;</div>
         <h3>Playlists & covers</h3>
-        <p>Crée tes playlists, ajoute des images de couverture, organise tout comme tu veux.</p>
+        <p>Crée tes playlists avec des images de couverture custom.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">&#128228;</div>
+        <h3>Import facile</h3>
+        <p>Lien YouTube, fichier CSV (Deezer/Spotify), ou dossier MP3.</p>
       </div>
       <div class="feature">
         <div class="feature-icon">&#128274;</div>
         <h3>100% privé</h3>
-        <p>Tout reste sur ton appareil. Pas de compte obligatoire, pas de tracking, pas de pub.</p>
+        <p>Tout reste sur ton PC. Zéro tracking, zéro serveur distant.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">&#128260;</div>
+        <h3>Mises à jour auto</h3>
+        <p>Un clic et l'app se met à jour toute seule.</p>
       </div>
     </div>
+  </section>
 
-    <div class="downloads">
-      <a href="https://github.com/tomvivian28072005/maMusique/releases/download/v0.1.0/maMusique-setup.exe" class="dl-btn dl-btn-windows" id="dl-windows">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 12V6.75l6-1.32v6.48L3 12zm6.41.09l8.59.08V4.5L9.41 5.58v6.51zM3 13l6 .09v6.72l-6-1.31V13zm6.41.25L18 13.2v7.8l-8.59-1.08v-6.67z"/></svg>
-        Windows 10/11
-      </a>
-      <a href="#" class="dl-btn dl-btn-mobile" id="dl-mobile">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="7" y="2" width="10" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18.01" stroke-width="2" stroke-linecap="round"/></svg>
-        Téléphone
-        <span class="dl-soon">bientôt disponible</span>
-      </a>
-    </div>
-
-    <div class="info" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 16px; margin-bottom: 24px; max-width: 480px; margin-left: auto; margin-right: auto;">
-      <p style="color: #94a3b8; margin-bottom: 8px; font-size: 0.8rem;">
-        <strong style="color: #fbbf24;">Windows Defender</strong> peut afficher un avertissement car l'app n'est pas encore certifiée.
-      </p>
-      <p style="font-size: 0.75rem; color: #64748b;">
-        Clique sur <strong style="color: #e2e8f0;">"Informations complémentaires"</strong> puis <strong style="color: #e2e8f0;">"Exécuter quand même"</strong>.
-        Le code source est ouvert et vérifiable.
+  <!-- ── DEFENDER WARNING ── -->
+  <section style="padding-top: 0;">
+    <div class="warning-box">
+      <div class="title">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M5.07 19h13.86c1.5 0 2.47-1.6 1.73-2.88L13.73 4.24c-.74-1.28-2.72-1.28-3.46 0L3.34 16.12C2.6 17.4 3.57 19 5.07 19z"/></svg>
+        Windows Defender
+      </div>
+      <p>
+        L'app n'est pas encore certifiée, donc Windows peut afficher un avertissement.
+        Clique sur <strong>"Informations complémentaires"</strong> puis <strong>"Exécuter quand même"</strong>.
+        Le code source est entièrement ouvert et vérifiable.
       </p>
     </div>
+  </section>
 
-    <p class="info">
-      Gratuit et open source. Version actuelle : v0.1.0<br>
+  <!-- ── FOOTER ── -->
+  <footer>
+    <p>
+      Fait avec soin par Tom Vivian<br>
       <a href="https://github.com/tomvivian28072005/maMusique">Code source sur GitHub</a>
     </p>
-  </div>
+  </footer>
+
 </body>
 </html>
