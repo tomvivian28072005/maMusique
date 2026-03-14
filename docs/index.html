@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>maMusique — Lecteur musical personnel</title>
+  <link rel="icon" type="image/svg+xml" href="logo.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: #0a0f1a;
+      color: #e2e8f0;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Fond subtil */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(ellipse at 30% 20%, rgba(37, 99, 235, 0.08) 0%, transparent 60%),
+                  radial-gradient(ellipse at 70% 80%, rgba(14, 165, 233, 0.05) 0%, transparent 60%);
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 60px 24px;
+      text-align: center;
+    }
+
+    /* Logo */
+    .logo {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 32px;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 8px;
+      letter-spacing: -0.02em;
+    }
+
+    .tagline {
+      font-size: 1.1rem;
+      color: #94a3b8;
+      margin-bottom: 48px;
+      font-weight: 300;
+    }
+
+    /* Features */
+    .features {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 56px;
+      text-align: left;
+    }
+
+    .feature {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .feature-icon {
+      font-size: 1.4rem;
+      margin-bottom: 8px;
+    }
+
+    .feature h3 {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+
+    .feature p {
+      font-size: 0.8rem;
+      color: #64748b;
+      line-height: 1.4;
+    }
+
+    /* Download buttons */
+    .downloads {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      align-items: center;
+      margin-bottom: 48px;
+    }
+
+    .dl-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      width: 100%;
+      max-width: 340px;
+      padding: 16px 28px;
+      border-radius: 14px;
+      font-family: 'Outfit', sans-serif;
+      font-size: 1rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: transform 0.15s, box-shadow 0.15s;
+      cursor: pointer;
+      border: none;
+    }
+
+    .dl-btn:hover {
+      transform: translateY(-2px);
+    }
+
+    .dl-btn:active {
+      transform: scale(0.98);
+    }
+
+    .dl-btn-windows {
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      color: #fff;
+      box-shadow: 0 8px 24px rgba(37, 99, 235, 0.25);
+    }
+
+    .dl-btn-windows:hover {
+      box-shadow: 0 12px 32px rgba(37, 99, 235, 0.35);
+    }
+
+    .dl-btn-mobile {
+      background: rgba(255, 255, 255, 0.06);
+      color: #e2e8f0;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .dl-btn-mobile:hover {
+      background: rgba(255, 255, 255, 0.1);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    }
+
+    .dl-btn svg {
+      width: 22px;
+      height: 22px;
+      flex-shrink: 0;
+    }
+
+    .dl-soon {
+      font-size: 0.7rem;
+      font-weight: 400;
+      color: #64748b;
+      margin-left: 4px;
+    }
+
+    /* Info */
+    .info {
+      font-size: 0.8rem;
+      color: #475569;
+      line-height: 1.6;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    .info a {
+      color: #2563eb;
+      text-decoration: none;
+    }
+
+    .info a:hover {
+      text-decoration: underline;
+    }
+
+    /* Responsive */
+    @media (max-width: 520px) {
+      .container { padding: 40px 20px; }
+      h1 { font-size: 2rem; }
+      .features { grid-template-columns: 1fr; }
+      .dl-btn { max-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <svg class="logo" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#2563eb"/>
+          <stop offset="100%" stop-color="#1e3a8a"/>
+        </linearGradient>
+      </defs>
+      <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#g)"/>
+      <path d="M23 17v28.4a7.6 7.6 0 1 0 4.6 7V27.4h14.2V17H23z" fill="#fff"/>
+      <circle cx="50" cy="18" r="4" fill="#0ea5e9"/>
+    </svg>
+
+    <h1>maMusique</h1>
+    <p class="tagline">Ta musique, ton player, tes playlists. Gratuit et sans pub.</p>
+
+    <div class="features">
+      <div class="feature">
+        <div class="feature-icon">&#127925;</div>
+        <h3>Player complet</h3>
+        <p>Lecture, shuffle, repeat, file d'attente. Comme Deezer ou Spotify, mais chez toi.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">&#128228;</div>
+        <h3>Ajoute ta musique</h3>
+        <p>Colle un lien YouTube ou cherche par titre. Le morceau est dans ta bibliothèque en quelques secondes.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">&#127912;</div>
+        <h3>Playlists & covers</h3>
+        <p>Crée tes playlists, ajoute des images de couverture, organise tout comme tu veux.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">&#128274;</div>
+        <h3>100% privé</h3>
+        <p>Tout reste sur ton appareil. Pas de compte obligatoire, pas de tracking, pas de pub.</p>
+      </div>
+    </div>
+
+    <div class="downloads">
+      <a href="#" class="dl-btn dl-btn-windows" id="dl-windows">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 12V6.75l6-1.32v6.48L3 12zm6.41.09l8.59.08V4.5L9.41 5.58v6.51zM3 13l6 .09v6.72l-6-1.31V13zm6.41.25L18 13.2v7.8l-8.59-1.08v-6.67z"/></svg>
+        Windows 10/11
+      </a>
+      <a href="#" class="dl-btn dl-btn-mobile" id="dl-mobile">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="7" y="2" width="10" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18.01" stroke-width="2" stroke-linecap="round"/></svg>
+        Téléphone
+        <span class="dl-soon">bientôt disponible</span>
+      </a>
+    </div>
+
+    <p class="info">
+      Gratuit et open source. Version actuelle : v0.1.0<br>
+      <a href="https://github.com/tomvivian28072005/maMusique">Code source sur GitHub</a>
+    </p>
+  </div>
+</body>
+</html>
