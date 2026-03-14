@@ -63,6 +63,9 @@ NODE_PATH = _find_bin("node.exe", r"C:\jeu + application\utilitaire\programation
 _cookies_path = _BASE / "cookies.txt"
 COOKIES_FILE = str(_cookies_path) if _cookies_path.exists() else None
 
+# Empêcher l'ouverture d'une fenêtre console pour les sous-processus (yt-dlp, ffmpeg…)
+_NO_WINDOW = 0x08000000 if sys.platform == "win32" else 0
+
 def _ytdlp_base_args(*, use_js=True):
     """Arguments communs à toutes les commandes yt-dlp."""
     args = [YTDLP_BIN, "--ffmpeg-location", FFMPEG_DIR]
@@ -285,10 +288,10 @@ def download_audio(url: str, db: Session) -> dict:
 
     # Étape 1 : Récupérer les métadonnées (titre, artiste) via --dump-json
     meta_extra = ["--dump-json", "--no-download", "--no-playlist", url]
-    meta_result = subprocess.run(_ytdlp_base_args() + meta_extra, capture_output=True, text=True, timeout=120)
+    meta_result = subprocess.run(_ytdlp_base_args() + meta_extra, capture_output=True, text=True, timeout=120, creationflags=_NO_WINDOW)
     if meta_result.returncode != 0 or not meta_result.stdout.strip():
         logger.warning(f"yt-dlp meta failed (rc={meta_result.returncode}), retrying without JS flags...")
-        meta_result = subprocess.run(_ytdlp_base_args(use_js=False) + meta_extra, capture_output=True, text=True, timeout=120)
+        meta_result = subprocess.run(_ytdlp_base_args(use_js=False) + meta_extra, capture_output=True, text=True, timeout=120, creationflags=_NO_WINDOW)
     if meta_result.returncode != 0:
         raise RuntimeError(meta_result.stderr.strip().split("\n")[-1])
 
@@ -306,10 +309,10 @@ def download_audio(url: str, db: Session) -> dict:
         url,
     ]
     existing_before = set(DOWNLOADS_DIR.glob("*.mp3"))
-    dl_result = subprocess.run(_ytdlp_base_args() + dl_extra, capture_output=True, text=True, timeout=600)
+    dl_result = subprocess.run(_ytdlp_base_args() + dl_extra, capture_output=True, text=True, timeout=600, creationflags=_NO_WINDOW)
     if dl_result.returncode != 0:
         logger.warning(f"yt-dlp download failed (rc={dl_result.returncode}), retrying without JS flags...")
-        dl_result = subprocess.run(_ytdlp_base_args(use_js=False) + dl_extra, capture_output=True, text=True, timeout=600)
+        dl_result = subprocess.run(_ytdlp_base_args(use_js=False) + dl_extra, capture_output=True, text=True, timeout=600, creationflags=_NO_WINDOW)
     if dl_result.returncode != 0:
         raise RuntimeError(dl_result.stderr.strip().split("\n")[-1])
 
@@ -471,9 +474,9 @@ def replace_track_worker(track_id: int, url: str):
         
         # Step 1: Get info
         meta_extra = ["--dump-json", "--no-download", "--no-playlist", url]
-        meta_result = subprocess.run(_ytdlp_base_args() + meta_extra, capture_output=True, text=True, timeout=120)
+        meta_result = subprocess.run(_ytdlp_base_args() + meta_extra, capture_output=True, text=True, timeout=120, creationflags=_NO_WINDOW)
         if meta_result.returncode != 0 or not meta_result.stdout.strip():
-            meta_result = subprocess.run(_ytdlp_base_args(use_js=False) + meta_extra, capture_output=True, text=True, timeout=120)
+            meta_result = subprocess.run(_ytdlp_base_args(use_js=False) + meta_extra, capture_output=True, text=True, timeout=120, creationflags=_NO_WINDOW)
         if meta_result.returncode != 0:
             raise RuntimeError(f"Metadata error: {meta_result.stderr.strip()}")
 
@@ -491,9 +494,9 @@ def replace_track_worker(track_id: int, url: str):
             "--no-playlist",
             url
         ]
-        dl_result = subprocess.run(_ytdlp_base_args() + dl_extra, capture_output=True, text=True, timeout=1800)
+        dl_result = subprocess.run(_ytdlp_base_args() + dl_extra, capture_output=True, text=True, timeout=1800, creationflags=_NO_WINDOW)
         if dl_result.returncode != 0:
-            dl_result = subprocess.run(_ytdlp_base_args(use_js=False) + dl_extra, capture_output=True, text=True, timeout=1800)
+            dl_result = subprocess.run(_ytdlp_base_args(use_js=False) + dl_extra, capture_output=True, text=True, timeout=1800, creationflags=_NO_WINDOW)
         if dl_result.returncode != 0:
             raise RuntimeError(f"Download error: {dl_result.stderr.strip() or 'Unknown error'}")
             
@@ -566,7 +569,7 @@ async def api_search_download(req: SearchDownloadRequest, background_tasks: Back
             extra_args = ["--dump-json", "--no-download", "--no-playlist", search_query]
             meta_cmd = _ytdlp_base_args() + extra_args
             logger.info(f"yt-dlp search cmd: {meta_cmd}")
-            meta_result = subprocess.run(meta_cmd, capture_output=True, text=True, timeout=120)
+            meta_result = subprocess.run(meta_cmd, capture_output=True, text=True, timeout=120, creationflags=_NO_WINDOW)
             logger.info(f"yt-dlp search rc={meta_result.returncode} stdout_len={len(meta_result.stdout)} stderr_len={len(meta_result.stderr)}")
             # Fallback : retry sans --js-runtimes / --remote-components
             if meta_result.returncode != 0 or not meta_result.stdout.strip():
@@ -574,7 +577,7 @@ async def api_search_download(req: SearchDownloadRequest, background_tasks: Back
                 if meta_result.stderr:
                     logger.warning(f"yt-dlp stderr: {meta_result.stderr.strip()}")
                 meta_cmd2 = _ytdlp_base_args(use_js=False) + extra_args
-                meta_result = subprocess.run(meta_cmd2, capture_output=True, text=True, timeout=120)
+                meta_result = subprocess.run(meta_cmd2, capture_output=True, text=True, timeout=120, creationflags=_NO_WINDOW)
                 logger.info(f"yt-dlp fallback rc={meta_result.returncode} stdout_len={len(meta_result.stdout)}")
             if meta_result.returncode != 0 or not meta_result.stdout.strip():
                 err = meta_result.stderr.strip().split("\n")[-1] if meta_result.stderr.strip() else "Aucun résultat"
@@ -603,11 +606,11 @@ async def api_search_download(req: SearchDownloadRequest, background_tasks: Back
                 ]
                 existing_before = set(DOWNLOADS_DIR.glob("*.mp3"))
                 dl_cmd = _ytdlp_base_args() + dl_extra
-                dl_result = subprocess.run(dl_cmd, capture_output=True, text=True, timeout=600)
+                dl_result = subprocess.run(dl_cmd, capture_output=True, text=True, timeout=600, creationflags=_NO_WINDOW)
                 if dl_result.returncode != 0:
                     logger.warning(f"yt-dlp download failed (rc={dl_result.returncode}), retrying without JS flags...")
                     dl_cmd2 = _ytdlp_base_args(use_js=False) + dl_extra
-                    dl_result = subprocess.run(dl_cmd2, capture_output=True, text=True, timeout=600)
+                    dl_result = subprocess.run(dl_cmd2, capture_output=True, text=True, timeout=600, creationflags=_NO_WINDOW)
                 if dl_result.returncode != 0:
                     raise RuntimeError(f"Téléchargement échoué : {dl_result.stderr.strip().split(chr(10))[-1]}")
 
@@ -1035,9 +1038,9 @@ def import_worker(rows: list[dict]):
                 # Search YouTube: "title artist"
                 search_query = f"ytsearch1:{title} {artist}"
                 meta_extra = ["--dump-json", "--no-download", "--no-playlist", search_query]
-                meta_result = subprocess.run(_ytdlp_base_args() + meta_extra, capture_output=True, text=True, timeout=120)
+                meta_result = subprocess.run(_ytdlp_base_args() + meta_extra, capture_output=True, text=True, timeout=120, creationflags=_NO_WINDOW)
                 if meta_result.returncode != 0 or not meta_result.stdout.strip():
-                    meta_result = subprocess.run(_ytdlp_base_args(use_js=False) + meta_extra, capture_output=True, text=True, timeout=120)
+                    meta_result = subprocess.run(_ytdlp_base_args(use_js=False) + meta_extra, capture_output=True, text=True, timeout=120, creationflags=_NO_WINDOW)
                 if meta_result.returncode != 0 or not meta_result.stdout.strip():
                     err_detail = meta_result.stderr.strip().split(chr(10))[-1] if meta_result.stderr.strip() else "no output"
                     raise RuntimeError(f"yt-dlp search failed: {err_detail}")
@@ -1065,9 +1068,9 @@ def import_worker(rows: list[dict]):
                         video_url,
                     ]
                     existing_before = set(DOWNLOADS_DIR.glob("*.mp3"))
-                    dl_result = subprocess.run(_ytdlp_base_args() + dl_extra, capture_output=True, text=True, timeout=600)
+                    dl_result = subprocess.run(_ytdlp_base_args() + dl_extra, capture_output=True, text=True, timeout=600, creationflags=_NO_WINDOW)
                     if dl_result.returncode != 0:
-                        dl_result = subprocess.run(_ytdlp_base_args(use_js=False) + dl_extra, capture_output=True, text=True, timeout=600)
+                        dl_result = subprocess.run(_ytdlp_base_args(use_js=False) + dl_extra, capture_output=True, text=True, timeout=600, creationflags=_NO_WINDOW)
                     if dl_result.returncode != 0:
                         raise RuntimeError(f"Download failed: {dl_result.stderr.strip().split(chr(10))[-1]}")
 
