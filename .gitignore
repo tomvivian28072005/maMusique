@@ -1,0 +1,25 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+
+# Données utilisateur
+music.db
+downloads/
+covers/
+cookies.txt
+
+# Logs
+*.log
+
+# Environnement
+.env
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+.claude/
