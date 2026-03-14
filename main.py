@@ -105,7 +105,9 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="maMusique", lifespan=lifespan)
+APP_VERSION = "0.1.0"
+
+app = FastAPI(title="maMusique", version=APP_VERSION, lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -340,6 +342,11 @@ async def serve_index():
     if not html_path.exists():
         raise HTTPException(status_code=404, detail="index.html not found")
     return HTMLResponse(content=html_path.read_text(encoding="utf-8"))
+
+
+@app.get("/api/version")
+async def api_version():
+    return {"version": APP_VERSION}
 
 
 @app.post("/api/download")

@@ -758,6 +758,17 @@
 
   </div>
 
+  <!-- Update banner -->
+  <div id=”update-banner” class=”hidden fixed top-4 right-4 z-50 glass rounded-xl px-4 py-3 border border-white/10 shadow-xl flex items-center gap-3 max-w-sm”>
+    <svg class=”w-5 h-5 text-brand-400 flex-shrink-0” fill=”none” stroke=”currentColor” stroke-width=”2” viewBox=”0 0 24 24”><path stroke-linecap=”round” stroke-linejoin=”round” d=”M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12m0 0l-4-4m4 4l4-4”/></svg>
+    <p class=”text-sm text-gray-300”>Nouvelle version <strong class=”update-version text-white”>—</strong> disponible !
+      <a class=”update-link text-brand-400 hover:underline ml-1” href=”#” target=”_blank”>Télécharger</a>
+    </p>
+    <button onclick=”this.parentElement.classList.add('hidden')” class=”text-gray-500 hover:text-white transition flex-shrink-0”>
+      <svg class=”w-4 h-4” fill=”none” stroke=”currentColor” stroke-width=”2” viewBox=”0 0 24 24”><path stroke-linecap=”round” stroke-linejoin=”round” d=”M6 18L18 6M6 6l12 12”/></svg>
+    </button>
+  </div>
+
   <!-- â”€â”€ PLAYER (Modern Floating Glass) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
   <footer id="player" class="fixed bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-48px)] max-w-5xl z-40 hidden">
     <div class="glass rounded-3xl p-4 border border-white/10 shadow-2xl backdrop-blur-2xl">
@@ -4580,10 +4591,33 @@
     }
 
     // â”€â”€ Init â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    async function checkForUpdates() {
+      try {
+        const [localRes, remoteRes] = await Promise.all([
+          fetch('/api/version'),
+          fetch('https://api.github.com/repos/tomvivian28072005/maMusique/releases/latest')
+        ]);
+        if (!localRes.ok || !remoteRes.ok) return;
+        const local = (await localRes.json()).version;
+        const remote = await remoteRes.json();
+        const latest = (remote.tag_name || '').replace(/^v/, '');
+        if (latest && latest !== local) {
+          const banner = document.getElementById('update-banner');
+          if (banner) {
+            banner.querySelector('.update-version').textContent = `v${latest}`;
+            banner.querySelector('.update-link').href = remote.html_url || '#';
+            banner.classList.remove('hidden');
+          }
+        }
+      } catch(e) { /* pas de connexion ou pas de release, on ignore */ }
+    }
+
     async function initApp() {
       setSort('added_at');
       restoreLastState();
       await Promise.all([fetchPlaylists(), fetchFavorites()]);
+      // Vérifier les mises à jour en arrière-plan (non bloquant)
+      checkForUpdates();
 
       // Restore last playlist or default to first
       const lastPlId = parseInt(localStorage.getItem('maMusique_lastPlaylistId'));
