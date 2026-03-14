@@ -12,6 +12,13 @@ import time
 if getattr(sys, 'frozen', False):
     BASE_DIR = os.path.dirname(sys.executable)
     os.chdir(BASE_DIR)
+    # --noconsole met sys.stdout/stderr à None, ce qui crash uvicorn
+    # Rediriger vers le fichier log
+    _log = open(os.path.join(BASE_DIR, "Clom.log"), "a", encoding="utf-8")
+    if sys.stdout is None:
+        sys.stdout = _log
+    if sys.stderr is None:
+        sys.stderr = _log
 else:
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     os.chdir(BASE_DIR)
