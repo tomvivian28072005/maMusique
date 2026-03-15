@@ -534,10 +534,17 @@
               <h2 id="playlist-detail-name" class="text-5xl font-bold text-white mb-4 tracking-tight">—</h2>
               <div class="flex items-center gap-4">
                 <p id="playlist-detail-count" class="text-sm text-gray-400 font-medium"></p>
+                <span id="playlist-detail-duration" class="text-sm text-gray-500 font-medium"></span>
                 <button onclick="toggleQueuePanel()" id="queue-btn"
-                  class="p-2 rounded-full glass text-gray-400 hover:text-white transition">
+                  class="p-2 rounded-full glass text-gray-400 hover:text-white transition" title="File d'attente">
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path d="M4 6h16M4 12h10M4 18h16" />
+                  </svg>
+                </button>
+                <button onclick="exportPlaylist()" id="export-playlist-btn"
+                  class="p-2 rounded-full glass text-gray-400 hover:text-white transition" title="Exporter la playlist">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                   </svg>
                 </button>
               </div>
@@ -983,7 +990,7 @@
 
       <!-- Volume coefficient -->
       <label class="block text-xs text-gray-400 mb-1">Volume : <span id="rename-coeff-display">1.00</span>×</label>
-      <input id="rename-coeff" type="range" min="0.5" max="2" step="0.05" value="1"
+      <input id="rename-coeff" type="range" min="0.5" max="3" step="0.05" value="1"
         oninput="document.getElementById('rename-coeff-display').textContent = parseFloat(this.value).toFixed(2); updatePreviewVolume()"
         class="w-full accent-violet-500 mb-4" />
 
@@ -1300,6 +1307,7 @@
     let searchQuery = '';
     let pollTimer = null;
     let activeTrackId = null;
+    let _pendingLoadedHandler = null;  // track loadedmetadata listener to avoid stacking
     let currentPlaylistId = null;
     let currentPlaylistName = '';
     let currentPlaylistIsDefault = false;
@@ -2004,10 +2012,10 @@
           class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left hover:bg-gray-800 transition">
           <div class="w-8 h-8 rounded bg-gray-800 flex items-center justify-center flex-shrink-0 overflow-hidden">
             ${p.cover_path
-          ? `<img src="${p.cover_path}" alt="${escapeHtml(p.name)}" class="w-full h-full object-contain" />`
+          ? `<img src="${p.cover_path}" alt="${escapeHtml(p.name)}" class="w-full h-full object-cover" />`
           : `<svg class="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 24 24"><path d="M9 3v11.586a3 3 0 1 0 2 2.829V8h6V3H9z"/></svg>`}
           </div>
-          <span class="text-sm text-gray-300">${p.name}</span>
+          <span class="text-sm text-gray-300">${escapeHtml(p.name)}</span>
         </button>
       `).join('');
     }
@@ -2024,16 +2032,11 @@
       await fetchFavorites();
       hideModal('pick-playlist-modal');
 
+      // Keep selection mode active after adding — don't clear selection
       if (batchPickSource === 'library') {
-        selectedLibraryTrackIds = new Set();
-        librarySelectionMode = false;
         await fetchTracks();
-        updateLibrarySelectionControls();
       } else if (batchPickSource === 'playlist') {
-        selectedPlaylistTrackIds = new Set();
-        playlistSelectionMode = false;
         await fetchPlaylistTracks();
-        updatePlaylistSelectionControls();
       }
 
       pickTrackIds = [];
@@ -2120,6 +2123,21 @@
       const list = document.getElementById('playlist-track-list');
       const totalCount = playlistTracksCache.length;
       document.getElementById('playlist-detail-count').textContent = `${totalCount} titre${totalCount !== 1 ? 's' : ''}`;
+
+      // Fetch and display total duration
+      const durEl = document.getElementById('playlist-detail-duration');
+      if (durEl && currentPlaylistId) {
+        fetch(`/api/playlists/${currentPlaylistId}/duration`)
+          .then(r => r.json())
+          .then(d => {
+            const s = Math.round(d.total_seconds || 0);
+            if (s <= 0) { durEl.textContent = ''; return; }
+            const h = Math.floor(s / 3600);
+            const m = Math.floor((s % 3600) / 60);
+            durEl.textContent = h > 0 ? `· ${h}h ${m.toString().padStart(2,'0')}min` : `· ${m} min`;
+          })
+          .catch(() => { durEl.textContent = ''; });
+      }
 
       const allPlaylistIds = new Set(playlistTracksCache.map(t => t.id));
       selectedPlaylistTrackIds = new Set([...selectedPlaylistTrackIds].filter(id => allPlaylistIds.has(id)));
@@ -2237,6 +2255,20 @@
       fetchPlaylists();
     }
 
+    async function exportPlaylist() {
+      if (!currentPlaylistId) return;
+      const btn = document.getElementById('export-playlist-btn');
+      if (btn) btn.classList.add('animate-pulse');
+      try {
+        const a = document.createElement('a');
+        a.href = `/api/playlists/${currentPlaylistId}/export`;
+        a.download = '';
+        a.click();
+      } finally {
+        setTimeout(() => { if (btn) btn.classList.remove('animate-pulse'); }, 2000);
+      }
+    }
+
     async function openPickPlaylist(trackId) {
       pickTrackId = trackId;
       pickTrackIds = [trackId];
@@ -2247,19 +2279,27 @@
       if (titleEl) titleEl.textContent = 'Ajouter à une playlist';
       const list = document.getElementById('pick-playlist-list');
       list.innerHTML = '<p class="text-gray-500 text-sm text-center py-4">Chargement…</p>';
-      const res = await fetch('/api/playlists');
-      const playlists = await res.json();
-      list.innerHTML = playlists.map(p => `
-        <button onclick="addTrackToPickedPlaylist(${p.id})"
-          class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left hover:bg-gray-800 transition">
+      const [playlistsRes, memberRes] = await Promise.all([
+        fetch('/api/playlists'),
+        fetch(`/api/tracks/${trackId}/playlists`)
+      ]);
+      const playlists = await playlistsRes.json();
+      const memberData = await memberRes.json();
+      const memberSet = new Set(memberData.playlist_ids || []);
+      list.innerHTML = playlists.map(p => {
+        const alreadyIn = memberSet.has(p.id);
+        return `
+        <button ${alreadyIn ? 'disabled' : `onclick="addTrackToPickedPlaylist(${p.id})"`}
+          class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition ${alreadyIn ? 'opacity-40 cursor-default' : 'hover:bg-gray-800'}">
           <div class="w-8 h-8 rounded bg-gray-800 flex items-center justify-center flex-shrink-0 overflow-hidden">
             ${p.cover_path
-          ? `<img src="${p.cover_path}" alt="${escapeHtml(p.name)}" class="w-full h-full object-contain" />`
+          ? `<img src="${p.cover_path}" alt="${escapeHtml(p.name)}" class="w-full h-full object-cover" />`
           : `<svg class="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 24 24"><path d="M9 3v11.586a3 3 0 1 0 2 2.829V8h6V3H9z"/></svg>`}
           </div>
-          <span class="text-sm text-gray-300">${p.name}</span>
-        </button>
-      `).join('');
+          <span class="text-sm text-gray-300">${escapeHtml(p.name)}</span>
+          ${alreadyIn ? '<span class="text-[10px] text-gray-500 ml-auto">Déjà ajouté</span>' : ''}
+        </button>`;
+      }).join('');
     }
 
     async function addTrackToPickedPlaylist(playlistId) {
@@ -2443,15 +2483,15 @@
                   <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h16"/></svg>
                   File d'attente
                 </button>
+                <button onclick="event.stopPropagation(); openPickPlaylist(${t.id})">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"/></svg>
+                  Ajouter
+                </button>
                 ${prefix === 'plt' ? `
                 <button class="menu-delete" onclick="event.stopPropagation(); closeAllMenus(); removeFromPlaylist(${t.id})">
                   <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
                   Retirer
                 </button>` : `
-                <button onclick="event.stopPropagation(); openPickPlaylist(${t.id})">
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"/></svg>
-                  Ajouter
-                </button>
                 <button class="menu-delete" onclick="event.stopPropagation(); closeAllMenus(); deleteTrack(${t.id})">
                   <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                   Supprimer
@@ -2550,9 +2590,14 @@
       document.getElementById('player-title').textContent = title || "Titre inconnu";
       document.getElementById('player-artist').textContent = artist || "Artiste inconnu";
       updatePlayerMarquees();
-      
-      document.getElementById('fullscreen-title').textContent = title || "Titre inconnu";
-      document.getElementById('fullscreen-artist').textContent = artist || "Artiste inconnu";
+
+      // Fullscreen title/artist: delay update to sync with cover fade transition
+      if (currentView === 'cover-fullscreen') {
+        // Will be set inside smoothFullscreenSwap callback below
+      } else {
+        document.getElementById('fullscreen-title').textContent = title || "Titre inconnu";
+        document.getElementById('fullscreen-artist').textContent = artist || "Artiste inconnu";
+      }
 
       // Add cache-busting timestamp to prevent browsing serving old file after replacement
       if (path) {
@@ -2563,16 +2608,20 @@
       applyVolume();
       saveLastTrack(id, path, title, artist, volumeCoeff, startTime, endTime);
 
-      // Load and display cover
-      fetch(`/api/tracks?sort_by=added_at`)
-        .then(r => r.json())
-        .then(tracks => {
-          const track = tracks.find(t => t.id == id);
+      // Load and display cover from cache (no fetch needed)
+      {
+          const track = (
+            (typeof currentViewTracks !== 'undefined' ? currentViewTracks.find(x => x.id == id) : null) ||
+            playlistTracksCache.find(x => x.id == id) ||
+            (typeof allTracksCache !== 'undefined' ? allTracksCache.find(x => x.id == id) : null)
+          );
           if (track && track.cover_path) {
             updatePlayerCover(track.cover_path, track.cover_zoom, track.cover_offset_x, track.cover_offset_y);
             // Update fullscreen cover if in that view
             if (currentView === 'cover-fullscreen') {
               smoothFullscreenSwap(() => {
+                document.getElementById('fullscreen-title').textContent = title || "Titre inconnu";
+                document.getElementById('fullscreen-artist').textContent = artist || "Artiste inconnu";
                 const fullscreenImg = document.getElementById('fullscreen-cover-img');
                 const fullscreenVideo = document.getElementById('fullscreen-cover-video');
                 const noCoverBg = document.getElementById('fullscreen-no-cover-bg');
@@ -2617,6 +2666,8 @@
             // Show default background in fullscreen if in that view
             if (currentView === 'cover-fullscreen') {
               smoothFullscreenSwap(() => {
+                document.getElementById('fullscreen-title').textContent = title || "Titre inconnu";
+                document.getElementById('fullscreen-artist').textContent = artist || "Artiste inconnu";
                 const fullscreenImg = document.getElementById('fullscreen-cover-img');
                 const fullscreenVideo = document.getElementById('fullscreen-cover-video');
                 const noCoverBg = document.getElementById('fullscreen-no-cover-bg');
@@ -2630,8 +2681,7 @@
               });
             }
           }
-        })
-        .catch(() => resetPlayerCover());
+      }
 
       const doPlay = () => {
         // Seek to start position BEFORE playing to avoid hearing the trimmed part
@@ -2642,11 +2692,16 @@
         updateDynamicBg(id);
       };
 
-      // Always wait for loadedmetadata so audio is seekable before playing
-      audio.addEventListener('loadedmetadata', function onReady() {
+      // Remove previous loadedmetadata listener to prevent stacking
+      if (_pendingLoadedHandler) {
+        audio.removeEventListener('loadedmetadata', _pendingLoadedHandler);
+      }
+      _pendingLoadedHandler = function onReady() {
         audio.removeEventListener('loadedmetadata', onReady);
+        _pendingLoadedHandler = null;
         doPlay();
-      });
+      };
+      audio.addEventListener('loadedmetadata', _pendingLoadedHandler);
       document.getElementById('player').classList.remove('hidden');
 
       // Update auto queue index if track is in auto queue
@@ -2673,6 +2728,10 @@
     // â"€â"€ Dynamic Accent (text) â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
     let accentColorLoadToken = 0;
     let dynamicBgLoadToken = 0;
+    const _accentImg = new Image();   // reuse to avoid GC pressure
+    _accentImg.crossOrigin = 'Anonymous';
+    const _dynBgImg = new Image();
+    _dynBgImg.crossOrigin = 'Anonymous';
 
     function setAccentTextColor(r, g, b) {
       document.documentElement.style.setProperty('--accent-text', `rgb(${r}, ${g}, ${b})`);
@@ -2782,16 +2841,14 @@
         return;
       }
 
-      const img = new Image();
-      img.crossOrigin = 'Anonymous';
-      img.onload = () => {
+      _accentImg.onload = () => {
         if (token !== accentColorLoadToken) return;
         try {
           const canvas = document.createElement('canvas');
           canvas.width = 1;
           canvas.height = 1;
           const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, 1, 1);
+          ctx.drawImage(_accentImg, 0, 0, 1, 1);
           const data = ctx.getImageData(0, 0, 1, 1).data;
 
           let r = data[0], g = data[1], b = data[2];
@@ -2806,11 +2863,11 @@
           resetAccentTextColor();
         }
       };
-      img.onerror = () => {
+      _accentImg.onerror = () => {
         if (token !== accentColorLoadToken) return;
         resetAccentTextColor();
       };
-      img.src = coverPath;
+      _accentImg.src = coverPath;
     }
 
     function updateDynamicBg(trackId, coverPathOverride = null) {
@@ -2832,27 +2889,25 @@
         if (!coverPath || isVideo(coverPath)) {
           dyBg.style.background = fallbackBg;
         } else {
-          const img = new Image();
-          img.crossOrigin = 'Anonymous';
-          img.onload = () => {
+          _dynBgImg.onload = () => {
             if (token !== dynamicBgLoadToken) return;
             try {
               const canvas = document.createElement('canvas');
               canvas.width = 1;
               canvas.height = 1;
               const ctx = canvas.getContext('2d');
-              ctx.drawImage(img, 0, 0, 1, 1);
+              ctx.drawImage(_dynBgImg, 0, 0, 1, 1);
               const data = ctx.getImageData(0, 0, 1, 1).data;
               dyBg.style.background = `radial-gradient(circle at 50% 50%, rgba(${data[0]}, ${data[1]}, ${data[2]}, 0.38) 0%, transparent 100%)`;
             } catch (e) {
               dyBg.style.background = fallbackBg;
             }
           };
-          img.onerror = () => {
+          _dynBgImg.onerror = () => {
             if (token !== dynamicBgLoadToken) return;
             dyBg.style.background = fallbackBg;
           };
-          img.src = coverPath;
+          _dynBgImg.src = coverPath;
         }
 
         if (currentView === 'cover-fullscreen') dyBg.style.opacity = '1';

@@ -124,7 +124,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-APP_VERSION = "0.1.10"
+APP_VERSION = "0.1.11"
 
 app = FastAPI(title="Clom", version=APP_VERSION, lifespan=lifespan)
 
@@ -751,7 +751,7 @@ async def api_rename_track(track_id: int, req: RenameRequest, background_tasks: 
             background_tasks.add_task(replace_track_worker, track_id, url)
 
     if req.volume_coeff is not None:
-        track.volume_coeff = max(0.5, min(2.0, req.volume_coeff))
+        track.volume_coeff = max(0.5, min(3.0, req.volume_coeff))
     if req.clear_start_time:
         track.start_time = None
     elif req.start_time is not None:
@@ -1002,6 +1002,75 @@ async def api_remove_track_from_playlist(playlist_id: int, track_id: int, db: Se
     if not success:
         raise HTTPException(status_code=404, detail="Morceau non trouvé dans la playlist.")
     return {"message": "Morceau retiré de la playlist."}
+
+
+@app.get("/api/tracks/{track_id}/playlists")
+async def api_track_playlists(track_id: int, db: Session = Depends(get_db)):
+    """Return list of playlist IDs that contain this track."""
+    entries = db.query(PlaylistTrack.playlist_id).filter(PlaylistTrack.track_id == track_id).all()
+    return {"playlist_ids": [e[0] for e in entries]}
+
+
+@app.get("/api/playlists/{playlist_id}/duration")
+async def api_playlist_duration(playlist_id: int, db: Session = Depends(get_db)):
+    """Calculate total duration of a playlist, respecting start_time/end_time trim."""
+    tracks = get_playlist_tracks(db, playlist_id)
+    total = 0.0
+    for t in tracks:
+        fp = Path(t["file_path"].lstrip("/"))
+        try:
+            if fp.exists():
+                audio = MP3(str(fp))
+                length = audio.info.length
+                start = t.get("start_time") or 0
+                end = t.get("end_time") or length
+                total += max(0, min(end, length) - start)
+        except Exception:
+            pass
+    return {"total_seconds": total}
+
+
+@app.get("/api/playlists/{playlist_id}/export")
+async def api_export_playlist(playlist_id: int, db: Session = Depends(get_db)):
+    """Export playlist as a zip: folder with CSV + MP3 files."""
+    import zipfile, tempfile, shutil
+
+    playlist = db.query(Playlist).filter(Playlist.id == playlist_id).first()
+    if not playlist:
+        raise HTTPException(status_code=404, detail="Playlist introuvable.")
+
+    tracks = get_playlist_tracks(db, playlist_id)
+    safe_name = re.sub(r'[<>:"/\\|?*]', '_', playlist.name).strip() or "playlist"
+
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
+    tmp.close()
+
+    try:
+        with zipfile.ZipFile(tmp.name, 'w', zipfile.ZIP_DEFLATED) as zf:
+            # CSV info
+            csv_buf = StringIO()
+            writer = csv.writer(csv_buf, delimiter='\t')
+            writer.writerow(["Title", "Artist", "Play Count", "Volume Coeff", "Start Time", "End Time"])
+            for t in tracks:
+                writer.writerow([
+                    t["title"], t["artist"], t.get("play_count", 0),
+                    t.get("volume_coeff", 1.0), t.get("start_time", ""), t.get("end_time", "")
+                ])
+            zf.writestr(f"{safe_name}/info.csv", csv_buf.getvalue())
+
+            # MP3 files
+            for t in tracks:
+                fp = Path(t["file_path"].lstrip("/"))
+                if fp.exists():
+                    zf.write(str(fp), f"{safe_name}/{fp.name}")
+
+        bg = BackgroundTasks()
+        bg.add_task(os.unlink, tmp.name)
+        return FileResponse(tmp.name, filename=f"{safe_name}.zip", media_type="application/zip",
+                          background=bg)
+    except Exception as e:
+        os.unlink(tmp.name)
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ── CSV Import (Deezer, Spotify, etc.) ───────────────────────────────────────
