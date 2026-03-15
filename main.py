@@ -361,15 +361,36 @@ async def api_version():
     return {"version": APP_VERSION}
 
 
+_shutdown_timer = None
+
 @app.post("/api/shutdown")
 async def api_shutdown():
-    """Arrête le serveur proprement (appelé quand l'utilisateur ferme l'onglet)."""
+    """Shutdown différé — annulé si la page se recharge dans les 3 secondes."""
+    global _shutdown_timer
     if not getattr(sys, 'frozen', False):
         return {"status": "ignored (dev mode)"}
-    import signal
-    logger.info("Shutdown requested by client")
-    os.kill(os.getpid(), signal.SIGTERM)
-    return {"status": "shutting down"}
+    if _shutdown_timer is not None:
+        _shutdown_timer.cancel()
+    logger.info("Shutdown requested by client (3s delay)")
+    def _do_shutdown():
+        import signal
+        logger.info("Shutdown confirmed (no reload detected)")
+        os.kill(os.getpid(), signal.SIGTERM)
+    _shutdown_timer = threading.Timer(3.0, _do_shutdown)
+    _shutdown_timer.daemon = True
+    _shutdown_timer.start()
+    return {"status": "shutting down in 3s"}
+
+@app.post("/api/cancel-shutdown")
+async def api_cancel_shutdown():
+    """Annule un shutdown en cours (appelé au chargement de la page)."""
+    global _shutdown_timer
+    if _shutdown_timer is not None:
+        _shutdown_timer.cancel()
+        _shutdown_timer = None
+        logger.info("Shutdown cancelled (page reloaded)")
+        return {"status": "cancelled"}
+    return {"status": "no pending shutdown"}
 
 
 @app.post("/api/update")

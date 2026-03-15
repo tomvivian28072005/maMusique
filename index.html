@@ -4737,7 +4737,8 @@
       }
     }
 
-    // ── Shutdown on tab close ──────────────────────────
+    // ── Shutdown on tab close (avec délai pour permettre le reload) ──
+    fetch('/api/cancel-shutdown', { method: 'POST' });  // annule un shutdown en cours si reload
     window.addEventListener('pagehide', () => {
       navigator.sendBeacon('/api/shutdown');
     });
