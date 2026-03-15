@@ -89,13 +89,6 @@ def init_db():
     # Create default playlists if they don't exist
     db = SessionLocal()
     try:
-        perso = db.query(Playlist).filter(Playlist.name == "Perso", Playlist.is_default == 1).first()
-        if not perso:
-            db.add(Playlist(name="Perso", is_default=1, position=1))
-            db.commit()
-        elif perso.position is None or perso.position == 999:
-            perso.position = 1
-            db.commit()
         # Coup de coeur playlist
         fav = db.query(Playlist).filter(Playlist.name == "Coup de cœur", Playlist.is_default == 1).first()
         if not fav:

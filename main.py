@@ -124,7 +124,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-APP_VERSION = "0.1.7.2"
+APP_VERSION = "0.1.7.3"
 
 app = FastAPI(title="Clom", version=APP_VERSION, lifespan=lifespan)
 

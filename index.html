@@ -2575,6 +2575,7 @@
       // Add cache-busting timestamp to prevent browsing serving old file after replacement
       if (path) {
         audio.src = path + (path.includes('?') ? '&' : '?') + 't=' + Date.now();
+        audio.load();  // Force readyState reset so we always wait for loadedmetadata
       }
       
       applyVolume();
@@ -2659,15 +2660,11 @@
         updateDynamicBg(id);
       };
 
-      // Always wait for loadedmetadata so audio is seekable before setting currentTime
-      if (audio.readyState >= 1) {
+      // Always wait for loadedmetadata so audio is seekable before playing
+      audio.addEventListener('loadedmetadata', function onReady() {
+        audio.removeEventListener('loadedmetadata', onReady);
         doPlay();
-      } else {
-        audio.addEventListener('loadedmetadata', function onReady() {
-          audio.removeEventListener('loadedmetadata', onReady);
-          doPlay();
-        });
-      }
+      });
       document.getElementById('player').classList.remove('hidden');
 
       // Update auto queue index if track is in auto queue
