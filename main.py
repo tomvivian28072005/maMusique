@@ -124,7 +124,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-APP_VERSION = "0.1.4"
+APP_VERSION = "0.1.5"
 
 app = FastAPI(title="Clom", version=APP_VERSION, lifespan=lifespan)
 
@@ -362,6 +362,7 @@ async def api_version():
 
 
 _shutdown_timer = None
+_server_start_time = time.time()
 
 @app.post("/api/shutdown")
 async def api_shutdown():
@@ -369,6 +370,10 @@ async def api_shutdown():
     global _shutdown_timer
     if not getattr(sys, 'frozen', False):
         return {"status": "ignored (dev mode)"}
+    # Ignorer les shutdown pendant les 10 premières secondes (pages zombies après MAJ)
+    if time.time() - _server_start_time < 10:
+        logger.info("Shutdown ignored (server just started, likely stale page)")
+        return {"status": "ignored (grace period)"}
     if _shutdown_timer is not None:
         _shutdown_timer.cancel()
     logger.info("Shutdown requested by client (3s delay)")

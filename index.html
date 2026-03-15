@@ -4667,6 +4667,16 @@
     }
 
     // â”€â”€ Init â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    function versionNewer(remote, local) {
+      const r = remote.split('.').map(Number);
+      const l = local.split('.').map(Number);
+      for (let i = 0; i < Math.max(r.length, l.length); i++) {
+        if ((r[i]||0) > (l[i]||0)) return true;
+        if ((r[i]||0) < (l[i]||0)) return false;
+      }
+      return false;
+    }
+
     async function checkForUpdates() {
       try {
         const [localRes, remoteRes] = await Promise.all([
@@ -4677,7 +4687,7 @@
         const local = (await localRes.json()).version;
         const remote = await remoteRes.json();
         const latest = (remote.tag_name || '').replace(/^v/, '');
-        if (latest && latest !== local) {
+        if (latest && versionNewer(latest, local)) {
           const sidebar = document.getElementById('update-sidebar');
           const textEl = document.querySelector('.update-sidebar-text');
           if (sidebar) {
