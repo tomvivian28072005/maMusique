@@ -2434,10 +2434,6 @@
                   <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h16"/></svg>
                   File d'attente
                 </button>
-                <button onclick="event.stopPropagation(); openPickPlaylist(${t.id})">
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"/></svg>
-                  Ajouter
-                </button>
                 ${prefix === 'plt' ? `
                 <button class="menu-delete" onclick="event.stopPropagation(); closeAllMenus(); removeFromPlaylist(${t.id})">
                   <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
