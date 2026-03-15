@@ -4266,6 +4266,16 @@
         };
         updateTrackInCache(playlistTracksCache);
         if (window.allTracksCache) updateTrackInCache(window.allTracksCache);
+        updateTrackInCache(currentViewTracks);
+        updateTrackInCache(autoQueue);
+
+        // Update active playback params if this is the currently playing track
+        if (activeTrackId === trackIdInt) {
+          if (data.volume_coeff !== undefined) activeVolumeCoeff = data.volume_coeff;
+          if (data.start_time !== undefined) activeStartTime = data.start_time;
+          if (data.end_time !== undefined) activeEndTime = data.end_time;
+          applyVolume();
+        }
 
         // 2) Upload cover if a new file was selected
         if (coverFile) {
