@@ -634,16 +634,7 @@
                   Rechercher
                 </button>
               </div>
-              <div id="search-dl-progress" class="hidden mt-4 pt-4 border-t border-white/5">
-                <div class="flex items-center justify-between mb-2">
-                  <span id="search-dl-status" class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Initialisation...</span>
-                  <span id="search-dl-pct" class="text-[10px] font-bold text-neon-purple font-mono">0%</span>
-                </div>
-                <div class="h-1 w-full bg-white/10 rounded-full overflow-hidden">
-                  <div id="search-dl-bar" class="h-full bg-neon-purple w-0 transition-all duration-300"></div>
-                </div>
-              </div>
-              <div id="search-dl-msg" class="hidden mt-3"></div>
+              <div id="search-dl-queue" class="mt-4 space-y-2"></div>
             </div>
 
             <!-- â"€â"€ Panel: YOUTUBE URL â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ -->
@@ -661,16 +652,7 @@
                   <span id="dl-label">Télécharger</span>
                 </button>
               </div>
-              <div id="dl-progress-zone" class="hidden mt-4 pt-4 border-t border-white/5">
-                <div class="flex items-center justify-between mb-2">
-                  <span id="dl-status-text" class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Analyse...</span>
-                  <span id="dl-pct" class="text-[10px] font-bold text-neon-pink font-mono">0%</span>
-                </div>
-                <div class="h-1 w-full bg-white/10 rounded-full overflow-hidden">
-                  <div id="dl-bar" class="h-full bg-neon-pink w-0 transition-all duration-300"></div>
-                </div>
-              </div>
-              <div id="dl-msg" class="hidden mt-3"></div>
+              <div id="dl-queue" class="mt-4 space-y-2"></div>
             </div>
 
             <!-- â"€â"€ Panel: CSV IMPORT â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ -->
@@ -3470,25 +3452,27 @@
     }
 
     // â"€â"€ Download â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+    let _dlCounter = 0;
     async function startDownload() {
-      const url = document.getElementById('yt-url').value.trim();
+      const input = document.getElementById('yt-url');
+      const url = input.value.trim();
       if (!url) return;
+      input.value = '';
 
-      const btn = document.getElementById('download-btn');
-      const label = document.getElementById('dl-label');
-      const zone = document.getElementById('dl-progress-zone');
-      const msg = document.getElementById('dl-msg');
-      const bar = document.getElementById('dl-bar');
-      const pct = document.getElementById('dl-pct');
-      const statusText = document.getElementById('dl-status-text');
-
-      btn.disabled = true;
-      label.textContent = 'En cours…';
-      zone.classList.remove('hidden');
-      msg.classList.add('hidden');
-      bar.style.width = '0%';
-      pct.textContent = '0%';
-      bar.classList.add('pulsing');
+      const queue = document.getElementById('dl-queue');
+      const id = 'dl-item-' + (++_dlCounter);
+      const item = document.createElement('div');
+      item.id = id;
+      item.className = 'pt-3 border-t border-white/5';
+      item.innerHTML = `
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-[10px] font-bold text-gray-500 uppercase tracking-widest truncate max-w-[70%]" data-status>En attente…</span>
+          <span class="text-[10px] font-bold text-neon-pink font-mono" data-pct></span>
+        </div>
+        <div class="h-1 w-full bg-white/10 rounded-full overflow-hidden">
+          <div class="h-full bg-neon-pink w-[5%] transition-all duration-300 pulsing" data-bar></div>
+        </div>`;
+      queue.prepend(item);
 
       try {
         const res = await fetch('/api/download', {
@@ -3499,46 +3483,37 @@
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail || 'Erreur.');
 
-        if (pollTimer) clearInterval(pollTimer);
-        pollTimer = setInterval(async () => {
-          const st = await (await fetch(`/api/download/status?url=${encodeURIComponent(url)}`)).json();
-
-          if (st.status === 'queued') {
-            bar.style.width = '5%';
-            pct.textContent = '';
-            statusText.textContent = 'En attente…';
-          } else if (st.status === 'downloading') {
-            const p = Math.max(st.progress || 0, 10);
-            bar.style.width = p + '%';
-            pct.textContent = p >= 10 ? p + '%' : '';
-            statusText.textContent = p < 10 ? 'Analyse de la vidéo…' : `Téléchargement… ${p}%`;
-          } else if (st.status === 'processing') {
-            bar.style.width = '95%';
-            pct.textContent = '95%';
-            statusText.textContent = 'Conversion MP3…';
-          } else if (st.status === 'done') {
-            clearInterval(pollTimer);
-            bar.classList.remove('pulsing');
-            zone.classList.add('hidden');
-            showMsg(msg, 'Titre ajouté avec succès !', 'success');
-            label.textContent = 'Télécharger';
-            btn.disabled = false;
-            document.getElementById('yt-url').value = '';
-            fetchTracks();
-          } else if (st.status === 'error') {
-            clearInterval(pollTimer);
-            zone.classList.add('hidden');
-            showMsg(msg, `Erreur : ${st.message}`, 'error');
-            label.textContent = 'Télécharger';
-            btn.disabled = false;
-          }
+        const timer = setInterval(async () => {
+          const el = document.getElementById(id);
+          if (!el) { clearInterval(timer); return; }
+          const bar = el.querySelector('[data-bar]');
+          const pct = el.querySelector('[data-pct]');
+          const status = el.querySelector('[data-status]');
+          try {
+            const st = await (await fetch(`/api/download/status?url=${encodeURIComponent(url)}`)).json();
+            if (st.status === 'queued') {
+              bar.style.width = '5%'; status.textContent = 'En attente…';
+            } else if (st.status === 'downloading') {
+              const p = Math.max(st.progress || 0, 10);
+              bar.style.width = p + '%'; pct.textContent = p + '%';
+              status.textContent = `Téléchargement…`;
+            } else if (st.status === 'processing') {
+              bar.style.width = '95%'; pct.textContent = '95%'; status.textContent = 'Conversion MP3…';
+            } else if (st.status === 'done') {
+              clearInterval(timer);
+              el.innerHTML = `<div class="text-[10px] text-green-400 py-1">✓ Ajouté</div>`;
+              setTimeout(() => el.remove(), 3000);
+              fetchTracks();
+            } else if (st.status === 'error') {
+              clearInterval(timer);
+              el.innerHTML = `<div class="text-[10px] text-red-400 py-1">✗ ${escapeHtml(st.message || 'Erreur')}</div>`;
+              setTimeout(() => el.remove(), 5000);
+            }
+          } catch(e) {}
         }, 800);
-
       } catch (e) {
-        zone.classList.add('hidden');
-        showMsg(msg, e.message, 'error');
-        label.textContent = 'Download';
-        btn.disabled = false;
+        const el = document.getElementById(id);
+        if (el) { el.innerHTML = `<div class="text-[10px] text-red-400 py-1">✗ ${escapeHtml(e.message)}</div>`; setTimeout(() => el.remove(), 5000); }
       }
     }
 
@@ -3556,25 +3531,32 @@
     // â"€â"€ Search & Download â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
     let searchPollTimer = null;
 
+    let _searchDlCounter = 0;
     async function startSearchDownload() {
-      const title = document.getElementById('search-dl-title').value.trim();
-      const artist = document.getElementById('search-dl-artist').value.trim();
+      const titleInput = document.getElementById('search-dl-title');
+      const artistInput = document.getElementById('search-dl-artist');
+      const title = titleInput.value.trim();
+      const artist = artistInput.value.trim();
       if (!title) return;
+      const label = artist ? `${title} — ${artist}` : title;
+      titleInput.value = '';
+      artistInput.value = '';
 
-      const btn = document.getElementById('search-dl-btn');
-      const zone = document.getElementById('search-dl-progress');
-      const msg = document.getElementById('search-dl-msg');
-      const bar = document.getElementById('search-dl-bar');
-      const pct = document.getElementById('search-dl-pct');
-      const statusEl = document.getElementById('search-dl-status');
-
-      btn.disabled = true;
-      btn.textContent = '…';
-      zone.classList.remove('hidden');
-      msg.classList.add('hidden');
-      bar.style.width = '0%';
-      pct.textContent = '0%';
-      bar.classList.add('pulsing');
+      const queue = document.getElementById('search-dl-queue');
+      const id = 'sdl-item-' + (++_searchDlCounter);
+      const item = document.createElement('div');
+      item.id = id;
+      item.className = 'pt-3 border-t border-white/5';
+      item.innerHTML = `
+        <div class="text-[10px] text-gray-400 truncate mb-1" data-label>${escapeHtml(label)}</div>
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-[10px] font-bold text-gray-500 uppercase tracking-widest" data-status>En attente…</span>
+          <span class="text-[10px] font-bold text-neon-purple font-mono" data-pct></span>
+        </div>
+        <div class="h-1 w-full bg-white/10 rounded-full overflow-hidden">
+          <div class="h-full bg-neon-purple w-[5%] transition-all duration-300 pulsing" data-bar></div>
+        </div>`;
+      queue.prepend(item);
 
       try {
         const res = await fetch('/api/search-download', {
@@ -3586,42 +3568,40 @@
         if (!res.ok) throw new Error(data.detail || 'Erreur.');
         const key = data.key;
 
-        if (searchPollTimer) clearInterval(searchPollTimer);
-        searchPollTimer = setInterval(async () => {
-          const st = await (await fetch(`/api/search-download/status?key=${encodeURIComponent(key)}`)).json();
-
-          if (st.status === 'queued') {
-            bar.style.width = '5%'; pct.textContent = ''; statusEl.textContent = 'En attente…';
-          } else if (st.status === 'searching') {
-            bar.style.width = st.progress + '%'; pct.textContent = st.progress + '%';
-            statusEl.textContent = 'Recherche sur YouTube…';
-          } else if (st.status === 'downloading') {
-            bar.style.width = st.progress + '%'; pct.textContent = st.progress + '%';
-            statusEl.textContent = 'Téléchargement…';
-          } else if (st.status === 'processing') {
-            bar.style.width = st.progress + '%'; pct.textContent = st.progress + '%';
-            statusEl.textContent = 'Conversion MP3…';
-          } else if (st.status === 'done') {
-            clearInterval(searchPollTimer);
-            bar.classList.remove('pulsing');
-            zone.classList.add('hidden');
-            showMsg(msg, `"${st.title}" ajouté avec succès !`, 'success');
-            btn.textContent = 'Rechercher'; btn.disabled = false;
-            document.getElementById('search-dl-title').value = '';
-            document.getElementById('search-dl-artist').value = '';
-            fetchTracks();
-          } else if (st.status === 'error') {
-            clearInterval(searchPollTimer);
-            zone.classList.add('hidden');
-            showMsg(msg, `Erreur : ${st.message}`, 'error');
-            btn.textContent = 'Rechercher'; btn.disabled = false;
-          }
+        const timer = setInterval(async () => {
+          const el = document.getElementById(id);
+          if (!el) { clearInterval(timer); return; }
+          const bar = el.querySelector('[data-bar]');
+          const pct = el.querySelector('[data-pct]');
+          const status = el.querySelector('[data-status]');
+          try {
+            const st = await (await fetch(`/api/search-download/status?key=${encodeURIComponent(key)}`)).json();
+            if (st.status === 'queued') {
+              bar.style.width = '5%'; status.textContent = 'En attente…';
+            } else if (st.status === 'searching') {
+              bar.style.width = st.progress + '%'; pct.textContent = st.progress + '%';
+              status.textContent = 'Recherche…';
+            } else if (st.status === 'downloading') {
+              bar.style.width = st.progress + '%'; pct.textContent = st.progress + '%';
+              status.textContent = 'Téléchargement…';
+            } else if (st.status === 'processing') {
+              bar.style.width = st.progress + '%'; pct.textContent = st.progress + '%';
+              status.textContent = 'Conversion…';
+            } else if (st.status === 'done') {
+              clearInterval(timer);
+              el.innerHTML = `<div class="text-[10px] text-green-400 py-1">✓ ${escapeHtml(st.title || label)}</div>`;
+              setTimeout(() => el.remove(), 3000);
+              fetchTracks();
+            } else if (st.status === 'error') {
+              clearInterval(timer);
+              el.innerHTML = `<div class="text-[10px] text-red-400 py-1">✗ ${escapeHtml(label)} — ${escapeHtml(st.message || 'Erreur')}</div>`;
+              setTimeout(() => el.remove(), 5000);
+            }
+          } catch(e) {}
         }, 800);
-
       } catch (e) {
-        zone.classList.add('hidden');
-        showMsg(msg, e.message, 'error');
-        btn.textContent = 'Rechercher'; btn.disabled = false;
+        const el = document.getElementById(id);
+        if (el) { el.innerHTML = `<div class="text-[10px] text-red-400 py-1">✗ ${escapeHtml(e.message)}</div>`; setTimeout(() => el.remove(), 5000); }
       }
     }
 

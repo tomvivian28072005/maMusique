@@ -1,6 +1,6 @@
 [Setup]
 AppName=Clom
-AppVersion=0.1.7.4
+AppVersion=0.1.8
 AppPublisher=Tom Vivian
 AppPublisherURL=https://tomvivian28072005.github.io/maMusique/
 DefaultDirName={userpf}\Clom
