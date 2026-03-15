@@ -124,7 +124,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-APP_VERSION = "0.1.7.1"
+APP_VERSION = "0.1.7.2"
 
 app = FastAPI(title="Clom", version=APP_VERSION, lifespan=lifespan)
 
@@ -433,8 +433,8 @@ async def api_update():
     bat_path = os.path.join(tmp_dir, "clom_update.bat")
     with open(bat_path, "w") as f:
         f.write(f'@echo off\n')
-        f.write(f'timeout /t 3 /nobreak >nul\n')
-        f.write(f'"{setup_path}" /SILENT /CLOSEAPPLICATIONS /SUPPRESSMSGBOXES /SP-\n')
+        f.write(f'timeout /t 5 /nobreak >nul\n')
+        f.write(f'start /wait "" "{setup_path}" /VERYSILENT /FORCECLOSEAPPLICATIONS /SUPPRESSMSGBOXES /SP-\n')
         f.write(f'timeout /t 2 /nobreak >nul\n')
         f.write(f'start "" "{app_exe}"\n')
         f.write(f'del "%~f0"\n')
@@ -1044,7 +1044,7 @@ def normalize_csv_columns(rows: list[dict]) -> list[dict]:
 
 
 def preprocess_csv_rows(rows: list[dict]) -> tuple[list[dict], int]:
-    """Retire les lignes sans titre et déduplique par titre+artiste. Retourne (rows_nettoyés, nb_retirés)."""
+    """Retire les lignes sans titre et déduplique par titre+artiste+playlist. Retourne (rows_nettoyés, nb_retirés)."""
     seen = set()
     clean = []
     for row in rows:
@@ -1052,7 +1052,8 @@ def preprocess_csv_rows(rows: list[dict]) -> tuple[list[dict], int]:
         if not title:
             continue
         artist = (row.get("Artist name") or "").strip()
-        key = (title.lower(), artist.lower())
+        playlist = (row.get("Playlist name") or "").strip()
+        key = (title.lower(), artist.lower(), playlist.lower())
         if key in seen:
             continue
         seen.add(key)
