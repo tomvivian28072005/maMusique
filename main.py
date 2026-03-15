@@ -124,7 +124,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-APP_VERSION = "0.1.7"
+APP_VERSION = "0.1.7.1"
 
 app = FastAPI(title="Clom", version=APP_VERSION, lifespan=lifespan)
 
@@ -1069,6 +1069,7 @@ import_status = {
     "log": [],
     "failed_rows": [],
     "stopped_early": False,
+    "stop_requested": False,
 }
 
 
@@ -1084,6 +1085,7 @@ def import_worker(rows: list[dict]):
     import_status["log"] = []
     import_status["failed_rows"] = []
     import_status["stopped_early"] = False
+    import_status["stop_requested"] = False
 
     consecutive_failures = 0
     playlist_cache: dict[str, int] = {}
@@ -1100,6 +1102,13 @@ def import_worker(rows: list[dict]):
         return pl.id
 
     for i, row in enumerate(rows):
+        if import_status["stop_requested"]:
+            import_status["stopped_early"] = True
+            remaining = rows[i:]
+            import_status["failed_rows"].extend(remaining)
+            import_status["log"].append(f"⛔ Import arrêté par l'utilisateur. {len(remaining)} morceaux restants.")
+            break
+
         title = (row.get("Track name") or "").strip()
         artist = (row.get("Artist name") or "").strip()
         playlist_name = (row.get("Playlist name") or "").strip()
@@ -1179,9 +1188,17 @@ def import_worker(rows: list[dict]):
 
                 import_status["log"].append(f"{log_msg} → OK")
 
-            # Add to playlist
+            # Add to playlist (map favorite playlist names to "Coup de cœur")
             if playlist_name:
-                pl_id = get_or_create_playlist(playlist_name)
+                _fav_names = {"favorite tracks", "liked songs", "loved tracks", "titres likés", "coups de cœur", "coup de coeur", "coup de cœur"}
+                if playlist_name.lower().strip() in _fav_names:
+                    fav_pl = db.query(Playlist).filter(Playlist.name == "Coup de cœur", Playlist.is_default == 1).first()
+                    if fav_pl:
+                        pl_id = fav_pl.id
+                    else:
+                        pl_id = get_or_create_playlist(playlist_name)
+                else:
+                    pl_id = get_or_create_playlist(playlist_name)
                 add_track_to_playlist(db, pl_id, track_id)
 
             consecutive_failures = 0
@@ -1257,6 +1274,14 @@ async def api_import_status():
         result["failed_count"] = len(result.get("failed_rows", []))
         result.pop("failed_rows", None)
     return result
+
+
+@app.post("/api/import/stop")
+async def api_import_stop():
+    if not import_status["running"]:
+        return {"message": "Aucun import en cours"}
+    import_status["stop_requested"] = True
+    return {"message": "Arrêt demandé"}
 
 
 @app.post("/api/import/folder-audio")

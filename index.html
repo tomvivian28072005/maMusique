@@ -706,6 +706,10 @@
                   <div id="import-bar" class="h-full bg-neon-cyan w-0"></div>
                 </div>
                 <div id="import-current" class="text-[10px] text-gray-400 italic mb-2 truncate"></div>
+                <button id="import-stop-btn" onclick="stopImport()"
+                  class="w-full py-2 mb-3 rounded-xl bg-red-700/30 border border-red-500/30 text-red-300 text-xs font-bold hover:bg-red-700/50 active:scale-[0.98] transition">
+                  Arrêter l'import
+                </button>
                 <div id="import-log" class="text-[9px] font-mono leading-tight max-h-32 overflow-y-auto bg-black/30 p-2 rounded border border-white/5 text-gray-500 scrollbar-hide"></div>
               </div>
               <!-- Failures CSV download -->
@@ -4522,11 +4526,22 @@
 
     let _lastFailedRows = null;
 
+    async function stopImport() {
+      const btn = document.getElementById('import-stop-btn');
+      btn.disabled = true;
+      btn.textContent = 'Arrêt en cours...';
+      try { await fetch('/api/import/stop', { method: 'POST' }); } catch(e) {}
+    }
+
     function pollImportStatus() {
       if (importPollTimer) clearInterval(importPollTimer);
       // Reset failures UI
       document.getElementById('import-failures')?.classList.add('hidden');
+      document.getElementById('import-stop-btn')?.classList.remove('hidden');
+      const stopBtn = document.getElementById('import-stop-btn');
+      if (stopBtn) { stopBtn.disabled = false; stopBtn.textContent = "Arrêter l'import"; }
       _lastFailedRows = null;
+      let _lastImportDone = -1;
 
       importPollTimer = setInterval(async () => {
         try {
@@ -4547,9 +4562,18 @@
           }).join('');
           logEl.scrollTop = logEl.scrollHeight;
 
+          // Rafraîchir la vue en temps réel quand un nouveau morceau est importé
+          if (st.done > _lastImportDone) {
+            _lastImportDone = st.done;
+            if (currentView === 'library') fetchTracks();
+            else if (currentView === 'playlist-detail' && currentPlaylistId) fetchPlaylistTracks();
+            fetchPlaylists();
+          }
+
           if (!st.running) {
             clearInterval(importPollTimer);
             document.getElementById('import-btn').disabled = false;
+            document.getElementById('import-stop-btn')?.classList.add('hidden');
             fetchTracks();
             fetchPlaylists();
 
@@ -4560,7 +4584,7 @@
               const failDiv = document.getElementById('import-failures');
               const failText = document.getElementById('import-fail-text');
               if (st.stopped_early) {
-                failText.textContent = `Import arrêté après 10 échecs consécutifs. ${failedRows.length} morceaux échoués/restants.`;
+                failText.textContent = `Import arrêté. ${failedRows.length} morceaux restants.`;
               } else {
                 failText.textContent = `${failedRows.length} morceau${failedRows.length > 1 ? 'x' : ''} en échec.`;
               }
