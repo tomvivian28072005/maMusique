@@ -124,7 +124,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-APP_VERSION = "0.1.3"
+APP_VERSION = "0.1.4"
 
 app = FastAPI(title="Clom", version=APP_VERSION, lifespan=lifespan)
 
@@ -423,12 +423,15 @@ async def api_update():
     urllib.request.urlretrieve(download_url, setup_path)
     logger.info(f"Update: downloaded to {setup_path}")
 
-    # 3. Créer un script batch qui attend, lance l'installeur, puis nettoie
+    # 3. Créer un script batch qui attend la fin du serveur, installe, relance
+    app_exe = os.path.join(os.path.dirname(sys.executable), "Clom.exe") if getattr(sys, 'frozen', False) else ""
     bat_path = os.path.join(tmp_dir, "clom_update.bat")
     with open(bat_path, "w") as f:
         f.write(f'@echo off\n')
         f.write(f'timeout /t 3 /nobreak >nul\n')
-        f.write(f'start "" "{setup_path}" /SILENT /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS\n')
+        f.write(f'"{setup_path}" /SILENT /CLOSEAPPLICATIONS /SUPPRESSMSGBOXES /SP-\n')
+        f.write(f'timeout /t 2 /nobreak >nul\n')
+        f.write(f'start "" "{app_exe}"\n')
         f.write(f'del "%~f0"\n')
 
     # 4. Lancer le script batch détaché
