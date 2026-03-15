@@ -419,6 +419,15 @@
         <p class="text-gray-600 text-xs text-center py-4">Chargement…</p>
       </div>
 
+      <!-- Update button (hidden by default) -->
+      <div id="update-sidebar" class="px-4 pt-3 sidebar-content hidden">
+        <button onclick="startUpdate(this)" id="update-sidebar-btn"
+          class="w-full px-3 py-2.5 rounded-xl text-sm font-semibold bg-brand-600/20 border border-brand-500/30 hover:bg-brand-600/40 text-brand-400 hover:text-white transition flex items-center gap-3">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12m0 0l-4-4m4 4l4-4"/></svg>
+          <span class="update-sidebar-text">Mise à jour</span>
+        </button>
+      </div>
+
       <!-- Quick Actions -->
       <div class="p-4 border-t border-white/5 sidebar-content">
         <button id="library-btn-sidebar" onclick="navigateTo('library')"
@@ -804,26 +813,6 @@
       </div>
     </main>
 
-  </div>
-
-  <!-- Update banner -->
-  <div id=”update-banner” class=”hidden fixed top-4 right-4 z-50 glass rounded-2xl px-5 py-4 border border-brand-500/30 shadow-2xl max-w-sm”>
-    <div class=”flex items-start gap-3”>
-      <div class=”w-10 h-10 rounded-xl bg-brand-600/20 flex items-center justify-center flex-shrink-0 mt-0.5”>
-        <svg class=”w-5 h-5 text-brand-400” fill=”none” stroke=”currentColor” stroke-width=”2” viewBox=”0 0 24 24”><path stroke-linecap=”round” stroke-linejoin=”round” d=”M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12m0 0l-4-4m4 4l4-4”/></svg>
-      </div>
-      <div class=”flex-1 min-w-0”>
-        <p class=”text-sm font-semibold text-white mb-1”>Mise à jour disponible</p>
-        <p class=”text-xs text-gray-400 mb-3”>La version <strong class=”update-version text-brand-400”>—</strong> est disponible.</p>
-        <div class=”flex items-center gap-2”>
-          <button onclick=”startUpdate(this)” class=”update-download px-4 py-1.5 rounded-lg text-xs font-bold bg-brand-600 hover:bg-brand-700 text-white transition”>Mettre à jour</button>
-          <a class=”update-link text-xs text-gray-500 hover:text-gray-300 transition” href=”#” target=”_blank”>Notes de version</a>
-        </div>
-      </div>
-      <button onclick=”this.closest('#update-banner').classList.add('hidden')” class=”text-gray-600 hover:text-white transition flex-shrink-0”>
-        <svg class=”w-4 h-4” fill=”none” stroke=”currentColor” stroke-width=”2” viewBox=”0 0 24 24”><path stroke-linecap=”round” stroke-linejoin=”round” d=”M6 18L18 6M6 6l12 12”/></svg>
-      </button>
-    </div>
   </div>
 
   <!-- â”€â”€ PLAYER (Modern Floating Glass) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
@@ -4693,18 +4682,11 @@
         const remote = await remoteRes.json();
         const latest = (remote.tag_name || '').replace(/^v/, '');
         if (latest && latest !== local) {
-          const banner = document.getElementById('update-banner');
-          if (banner) {
-            banner.querySelector('.update-version').textContent = `v${latest}`;
-            // Lien vers les notes de version
-            banner.querySelector('.update-link').href = remote.html_url || '#';
-            // Lien direct vers le .exe
-            const setupAsset = (remote.assets || []).find(a => a.name && a.name.endsWith('-setup.exe'));
-            const downloadBtn = banner.querySelector('.update-download');
-            if (downloadBtn) {
-              downloadBtn.href = setupAsset ? setupAsset.browser_download_url : (remote.html_url || '#');
-            }
-            banner.classList.remove('hidden');
+          const sidebar = document.getElementById('update-sidebar');
+          const textEl = document.querySelector('.update-sidebar-text');
+          if (sidebar) {
+            if (textEl) textEl.textContent = `Mise à jour v${latest}`;
+            sidebar.classList.remove('hidden');
           }
         }
       } catch(e) { /* pas de connexion ou pas de release, on ignore */ }
@@ -4742,11 +4724,12 @@
     // ── Auto-update ──────────────────────────────────
     async function startUpdate(btn) {
       btn.disabled = true;
-      btn.textContent = 'Téléchargement...';
+      const textEl = btn.querySelector('.update-sidebar-text') || btn;
+      textEl.textContent = 'Téléchargement...';
       try {
         const res = await fetch('/api/update', { method: 'POST' });
         if (!res.ok) throw new Error('Erreur serveur');
-        btn.textContent = 'Installation...';
+        textEl.textContent = 'Installation...';
         // Le serveur va s'arrêter, la page se déconnectera
         // On affiche un message pour l'utilisateur
         setTimeout(() => {
@@ -4761,7 +4744,7 @@
         }, 500);
       } catch(e) {
         btn.disabled = false;
-        btn.textContent = 'Mettre à jour';
+        textEl.textContent = 'Mise à jour';
         alert('La mise à jour a échoué. Vérifie ta connexion internet.');
       }
     }
