@@ -760,10 +760,10 @@
                 class="hidden px-4 py-2 rounded-full text-xs font-bold bg-brand-600 text-white hover:bg-brand-700 transition shadow-lg">
                 Ajouter à une playlist (0)
               </button>
-              <div class="flex bg-white/5 rounded-full p-1 border border-white/10">
-                <button onclick="setSort('added_at')" data-sort="added_at" class="sort-btn active px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition">DATE</button>
-                <button onclick="setSort('title')" data-sort="title" class="sort-btn px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition">TITRE</button>
-                <button onclick="setSort('artist')" data-sort="artist" class="sort-btn px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition">ARTISTE</button>
+              <div class="flex gap-1">
+                <button onclick="setSort('added_at')" data-sort="added_at" class="sort-btn active px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider transition">DATE</button>
+                <button onclick="setSort('title')" data-sort="title" class="sort-btn px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider transition">TITRE</button>
+                <button onclick="setSort('artist')" data-sort="artist" class="sort-btn px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider transition">ARTISTE</button>
               </div>
             </div>
           </div>
@@ -927,7 +927,7 @@
           <svg id="heart-outline" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
           </svg>
-          <svg id="heart-filled" class="w-5 h-5 hidden" fill="#2563eb" stroke="#2563eb" stroke-width="2" viewBox="0 0 24 24">
+          <svg id="heart-filled" class="w-5 h-5 hidden" fill="currentColor" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="color: var(--player-accent, #2563eb)">
             <path stroke-linecap="round" stroke-linejoin="round" d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
           </svg>
         </button>
@@ -1788,57 +1788,61 @@
       const name = document.getElementById('playlist-modal-name').value.trim();
       if (!name) return;
 
-      let playlistId = id ? parseInt(id) : null;
+      try {
+        let playlistId = id ? parseInt(id) : null;
 
-      if (id) {
-        await fetch(`/api/playlists/${id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name })
-        });
-      } else {
-        const res = await fetch('/api/playlists', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name })
-        });
-        const data = await res.json();
-        playlistId = data.id;
-      }
+        if (id) {
+          await fetch(`/api/playlists/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name })
+          });
+        } else {
+          const res = await fetch('/api/playlists', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name })
+          });
+          const data = await res.json();
+          playlistId = data.id;
+        }
 
-      // Upload cover if selected
-      const fileInput = document.getElementById('playlist-modal-cover-file');
-      if (fileInput.files && fileInput.files[0] && playlistId) {
-        const formData = new FormData();
-        formData.append('file', fileInput.files[0]);
-        await fetch(`/api/playlists/${playlistId}/cover`, {
-          method: 'POST',
-          body: formData
-        });
-      }
+        // Upload cover if selected
+        const fileInput = document.getElementById('playlist-modal-cover-file');
+        if (fileInput.files && fileInput.files[0] && playlistId) {
+          const formData = new FormData();
+          formData.append('file', fileInput.files[0]);
+          await fetch(`/api/playlists/${playlistId}/cover`, {
+            method: 'POST',
+            body: formData
+          });
+        }
 
-      // Send cover transform / clear_cover
-      if (playlistId) {
-        const zoom = parseFloat(document.getElementById('playlist-cover-zoom-slider').value) || 1.0;
-        const offsetX = parseFloat(document.getElementById('playlist-cover-offset-x').value) || 0.0;
-        const offsetY = parseFloat(document.getElementById('playlist-cover-offset-y').value) || 0.0;
-        await fetch(`/api/playlists/${playlistId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            cover_zoom: zoom,
-            cover_offset_x: offsetX,
-            cover_offset_y: offsetY,
-            clear_cover: playlistCoverMarkedForDeletion
-          })
-        });
-      }
+        // Send cover transform / clear_cover
+        if (playlistId) {
+          const zoom = parseFloat(document.getElementById('playlist-cover-zoom-slider').value) || 1.0;
+          const offsetX = parseFloat(document.getElementById('playlist-cover-offset-x').value) || 0.0;
+          const offsetY = parseFloat(document.getElementById('playlist-cover-offset-y').value) || 0.0;
+          await fetch(`/api/playlists/${playlistId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              cover_zoom: zoom,
+              cover_offset_x: offsetX,
+              cover_offset_y: offsetY,
+              clear_cover: playlistCoverMarkedForDeletion
+            })
+          });
+        }
 
-      // Update current playlist header if editing it
-      if (id && parseInt(id) === currentPlaylistId) {
-        currentPlaylistName = name;
-        document.getElementById('playlist-detail-name').textContent = name;
-        document.getElementById('header-title').textContent = name;
+        // Update current playlist header if editing it
+        if (id && parseInt(id) === currentPlaylistId) {
+          currentPlaylistName = name;
+          document.getElementById('playlist-detail-name').textContent = name;
+          document.getElementById('header-title').textContent = name;
+        }
+      } catch(e) {
+        console.error('submitPlaylistModal error:', e);
       }
 
       closePlaylistModal();
@@ -2236,6 +2240,13 @@
 
     // â"€â"€ Pick playlist modal (add single track to a playlist) â"€â"€â"€â"€
     let pickTrackId = null;
+
+    async function removeFromPlaylist(trackId) {
+      if (!currentPlaylistId) return;
+      await fetch(`/api/playlists/${currentPlaylistId}/tracks/${trackId}`, { method: 'DELETE' });
+      fetchPlaylistTracks();
+      fetchPlaylists();
+    }
 
     async function openPickPlaylist(trackId) {
       pickTrackId = trackId;
@@ -4804,27 +4815,31 @@
       btn.disabled = true;
       const textEl = btn.querySelector('.update-sidebar-text') || btn;
       textEl.textContent = 'Téléchargement...';
+      _updateInProgress = true;
+
+      function showUpdateScreen() {
+        window.close();
+        document.body.innerHTML = `
+          <div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#050508;color:#e2e8f0;font-family:Outfit,sans-serif;text-align:center">
+            <div>
+              <div style="font-size:3rem;margin-bottom:16px">&#128260;</div>
+              <h2 style="font-size:1.5rem;font-weight:700;margin-bottom:8px">Mise à jour en cours...</h2>
+              <p style="color:#94a3b8">Tu peux fermer cet onglet.<br>L'application va se relancer automatiquement.</p>
+            </div>
+          </div>`;
+      }
+
       try {
-        // Désactiver le shutdown automatique AVANT de lancer la MAJ
-        _updateInProgress = true;
         const res = await fetch('/api/update', { method: 'POST' });
-        if (!res.ok) throw new Error('Erreur serveur');
+        if (!res.ok) throw new Error('server-error');
         textEl.textContent = 'Installation...';
-        // Fermer cet onglet (le nouveau serveur ouvrira le sien)
-        setTimeout(() => {
-          window.close();
-          // Si window.close() ne marche pas (onglet pas ouvert par JS),
-          // afficher un message pour fermer manuellement
-          document.body.innerHTML = `
-            <div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#050508;color:#e2e8f0;font-family:Outfit,sans-serif;text-align:center">
-              <div>
-                <div style="font-size:3rem;margin-bottom:16px">&#128260;</div>
-                <h2 style="font-size:1.5rem;font-weight:700;margin-bottom:8px">Mise à jour en cours...</h2>
-                <p style="color:#94a3b8">Tu peux fermer cet onglet.<br>L'application va se relancer automatiquement.</p>
-              </div>
-            </div>`;
-        }, 500);
+        setTimeout(showUpdateScreen, 500);
       } catch(e) {
+        // Si le serveur a coupé pendant la requête (fetch failed), c'est normal = MAJ en cours
+        if (e.message !== 'server-error') {
+          setTimeout(showUpdateScreen, 500);
+          return;
+        }
         _updateInProgress = false;
         btn.disabled = false;
         textEl.textContent = 'Mise à jour';
