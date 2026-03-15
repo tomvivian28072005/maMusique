@@ -196,7 +196,7 @@ def update_playlist(db: Session, playlist_id: int, name: str = None, cover_path:
 
 def delete_playlist(db: Session, playlist_id: int) -> bool:
     playlist = db.query(Playlist).filter(Playlist.id == playlist_id).first()
-    if not playlist or playlist.is_default:
+    if not playlist or (playlist.is_default and playlist.name == "Coup de cœur"):
         return False
     db.delete(playlist)
     db.commit()

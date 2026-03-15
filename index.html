@@ -4559,8 +4559,8 @@
           }).join('');
           logEl.scrollTop = logEl.scrollHeight;
 
-          // Rafraîchir la vue en temps réel quand un nouveau morceau est importé
-          if (st.done > _lastImportDone) {
+          // Rafraîchir la vue toutes les 10 tracks pour éviter de surcharger le navigateur
+          if (st.done > _lastImportDone && (st.done % 10 === 0 || !st.running)) {
             _lastImportDone = st.done;
             if (currentView === 'library') fetchTracks();
             else if (currentView === 'playlist-detail' && currentPlaylistId) fetchPlaylistTracks();
