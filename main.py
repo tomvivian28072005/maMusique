@@ -124,7 +124,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-APP_VERSION = "0.1.6"
+APP_VERSION = "0.1.7"
 
 app = FastAPI(title="Clom", version=APP_VERSION, lifespan=lifespan)
 
@@ -1004,7 +1004,61 @@ async def api_remove_track_from_playlist(playlist_id: int, track_id: int, db: Se
     return {"message": "Morceau retiré de la playlist."}
 
 
-# ── Deezer CSV Import ────────────────────────────────────────────────────────
+# ── CSV Import (Deezer, Spotify, etc.) ───────────────────────────────────────
+
+def normalize_csv_columns(rows: list[dict]) -> list[dict]:
+    """Normalise les noms de colonnes CSV (Deezer/Spotify/générique) vers un format canonique."""
+    COLUMN_MAP = {
+        # Title
+        "track name": "Track name",
+        "titre": "Track name",
+        "track_name": "Track name",
+        "song name": "Track name",
+        "song": "Track name",
+        "title": "Track name",
+        "name": "Track name",
+        # Artist
+        "artist name": "Artist name",
+        "artist name(s)": "Artist name",
+        "artiste": "Artist name",
+        "artist_name": "Artist name",
+        "artist": "Artist name",
+        "artists": "Artist name",
+        # Album
+        "album name": "Album name",
+        "album": "Album name",
+        "album_name": "Album name",
+        # Playlist
+        "playlist name": "Playlist name",
+        "playlist": "Playlist name",
+        "playlist_name": "Playlist name",
+    }
+    normalized = []
+    for row in rows:
+        new_row = {}
+        for key, value in row.items():
+            canonical = COLUMN_MAP.get(key.strip().lower(), key.strip())
+            new_row[canonical] = value
+        normalized.append(new_row)
+    return normalized
+
+
+def preprocess_csv_rows(rows: list[dict]) -> tuple[list[dict], int]:
+    """Retire les lignes sans titre et déduplique par titre+artiste. Retourne (rows_nettoyés, nb_retirés)."""
+    seen = set()
+    clean = []
+    for row in rows:
+        title = (row.get("Track name") or "").strip()
+        if not title:
+            continue
+        artist = (row.get("Artist name") or "").strip()
+        key = (title.lower(), artist.lower())
+        if key in seen:
+            continue
+        seen.add(key)
+        clean.append(row)
+    return clean, len(rows) - len(clean)
+
 
 import_status = {
     "running": False,
@@ -1012,7 +1066,9 @@ import_status = {
     "done": 0,
     "errors": 0,
     "current": "",
-    "log": [],  # last N messages
+    "log": [],
+    "failed_rows": [],
+    "stopped_early": False,
 }
 
 
@@ -1026,9 +1082,11 @@ def import_worker(rows: list[dict]):
     import_status["done"] = 0
     import_status["errors"] = 0
     import_status["log"] = []
+    import_status["failed_rows"] = []
+    import_status["stopped_early"] = False
 
-    # Group rows by playlist
-    playlist_cache: dict[str, int] = {}  # name -> id
+    consecutive_failures = 0
+    playlist_cache: dict[str, int] = {}
 
     def get_or_create_playlist(name: str) -> int:
         if name in playlist_cache:
@@ -1042,9 +1100,9 @@ def import_worker(rows: list[dict]):
         return pl.id
 
     for i, row in enumerate(rows):
-        title = (row.get("Track name") or row.get("titre") or "").strip()
-        artist = (row.get("Artist name") or row.get("artiste") or "").strip()
-        playlist_name = (row.get("Playlist name") or row.get("playlist") or "").strip()
+        title = (row.get("Track name") or "").strip()
+        artist = (row.get("Artist name") or "").strip()
+        playlist_name = (row.get("Playlist name") or "").strip()
 
         if not title:
             import_status["done"] += 1
@@ -1054,7 +1112,6 @@ def import_worker(rows: list[dict]):
         log_msg = f"[{i+1}/{len(rows)}] {title} - {artist}"
 
         try:
-            # Check if track already exists in DB (by title+artist match)
             existing_track = db.query(Track).filter(
                 Track.title.ilike(title),
                 Track.artist.ilike(artist)
@@ -1064,7 +1121,6 @@ def import_worker(rows: list[dict]):
                 track_id = existing_track.id
                 import_status["log"].append(f"{log_msg} → déjà en base")
             else:
-                # Search YouTube: "title artist"
                 search_query = f"ytsearch1:{title} {artist}"
                 meta_extra = ["--dump-json", "--no-download", "--no-playlist", search_query]
                 meta_result = subprocess.run(_ytdlp_base_args() + meta_extra, capture_output=True, text=True, timeout=120, creationflags=_NO_WINDOW)
@@ -1077,17 +1133,13 @@ def import_worker(rows: list[dict]):
                 info = json.loads(meta_result.stdout)
                 video_url = info.get("webpage_url") or info.get("url", "")
 
-                # Use clean Deezer title/artist for the final filename
                 clean_name = f"{sanitize_filename(artist)} - {sanitize_filename(title)}.mp3"
                 final_path = DOWNLOADS_DIR / clean_name
 
-                # Skip download if file already exists on disk
                 if final_path.exists():
                     filepath = str(final_path)
                 else:
-                    # Download audio (use yt-dlp naming, then rename)
                     output_template = str(DOWNLOADS_DIR / "%(uploader)s - %(title)s.%(ext)s")
-
                     dl_extra = [
                         "--format", "bestaudio/best",
                         "--extract-audio", "--audio-format", "mp3", "--audio-quality", "192",
@@ -1103,7 +1155,6 @@ def import_worker(rows: list[dict]):
                     if dl_result.returncode != 0:
                         raise RuntimeError(f"Download failed: {dl_result.stderr.strip().split(chr(10))[-1]}")
 
-                    # Find the downloaded MP3 (yt-dlp names it with uploader - title)
                     yt_name = f"{sanitize_filename(info.get('uploader') or 'Unknown')} - {sanitize_filename(info.get('title') or 'Unknown')}.mp3"
                     yt_path = DOWNLOADS_DIR / yt_name
                     if not yt_path.exists():
@@ -1112,15 +1163,12 @@ def import_worker(rows: list[dict]):
                             raise FileNotFoundError("MP3 introuvable")
                         yt_path = next(iter(new_files))
 
-                    # Rename to clean Deezer name
                     os.rename(str(yt_path), str(final_path))
                     filepath = str(final_path)
 
-                # Inject metadata with the Deezer title/artist
                 inject_metadata(filepath, title, artist)
 
                 rel_path = "/downloads/" + final_path.name
-                # Check if file_path already exists in DB
                 existing_by_path = db.query(Track).filter(Track.file_path == rel_path).first()
                 if existing_by_path:
                     track_id = existing_by_path.id
@@ -1136,17 +1184,26 @@ def import_worker(rows: list[dict]):
                 pl_id = get_or_create_playlist(playlist_name)
                 add_track_to_playlist(db, pl_id, track_id)
 
+            consecutive_failures = 0
+
         except Exception as e:
             import_status["errors"] += 1
             import_status["log"].append(f"{log_msg} → ERREUR: {str(e)[:120]}")
+            import_status["failed_rows"].append(row)
+            consecutive_failures += 1
+
+            if consecutive_failures >= 10:
+                import_status["stopped_early"] = True
+                remaining = rows[i + 1:]
+                import_status["failed_rows"].extend(remaining)
+                import_status["log"].append(f"⛔ Import arrêté : {consecutive_failures} échecs consécutifs. {len(remaining)} morceaux restants.")
+                break
 
         import_status["done"] += 1
 
-        # Delay between tracks to avoid YouTube rate-limiting
         if i < len(rows) - 1:
             time.sleep(2)
 
-        # Keep only last 50 log entries
         if len(import_status["log"]) > 50:
             import_status["log"] = import_status["log"][-50:]
 
@@ -1161,8 +1218,7 @@ async def api_import_deezer(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="Un import est déjà en cours.")
 
     content = await file.read()
-    text = content.decode("utf-8-sig")  # handles BOM
-    # Auto-detect delimiter (tab, semicolon, or comma)
+    text = content.decode("utf-8-sig")
     first_line = text.split("\n", 1)[0]
     if "\t" in first_line:
         delimiter = "\t"
@@ -1176,17 +1232,31 @@ async def api_import_deezer(file: UploadFile = File(...)):
     if not rows:
         raise HTTPException(status_code=400, detail="Fichier CSV vide.")
 
-    # Launch in background thread (not BackgroundTasks, as this is long-running)
+    # Normaliser les colonnes (Deezer/Spotify/générique) puis dédupliquer
+    rows = normalize_csv_columns(rows)
+    rows, removed = preprocess_csv_rows(rows)
+
+    if not rows:
+        raise HTTPException(status_code=400, detail="Aucun morceau valide trouvé dans le CSV.")
+
     thread = threading.Thread(target=import_worker, args=(rows,), daemon=True)
     thread.start()
 
-    return {"message": f"Import démarré : {len(rows)} morceaux à traiter."}
+    msg = f"Import démarré : {len(rows)} morceaux à traiter."
+    if removed > 0:
+        msg += f" ({removed} doublons/lignes vides retirés)"
+    return {"message": msg}
 
 
 @app.get("/api/import/status")
 async def api_import_status():
     with _status_lock:
-        return import_status.copy()
+        result = import_status.copy()
+    # N'envoyer les failed_rows complètes que quand l'import est terminé
+    if result["running"]:
+        result["failed_count"] = len(result.get("failed_rows", []))
+        result.pop("failed_rows", None)
+    return result
 
 
 @app.post("/api/import/folder-audio")
