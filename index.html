@@ -4728,27 +4728,34 @@
     });
 
     // ── Auto-update ──────────────────────────────────
+    let _updateInProgress = false;
+
     async function startUpdate(btn) {
       btn.disabled = true;
       const textEl = btn.querySelector('.update-sidebar-text') || btn;
       textEl.textContent = 'Téléchargement...';
       try {
+        // Désactiver le shutdown automatique AVANT de lancer la MAJ
+        _updateInProgress = true;
         const res = await fetch('/api/update', { method: 'POST' });
         if (!res.ok) throw new Error('Erreur serveur');
         textEl.textContent = 'Installation...';
-        // Le serveur va s'arrêter, la page se déconnectera
-        // On affiche un message pour l'utilisateur
+        // Fermer cet onglet (le nouveau serveur ouvrira le sien)
         setTimeout(() => {
+          window.close();
+          // Si window.close() ne marche pas (onglet pas ouvert par JS),
+          // afficher un message pour fermer manuellement
           document.body.innerHTML = `
             <div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#050508;color:#e2e8f0;font-family:Outfit,sans-serif;text-align:center">
               <div>
                 <div style="font-size:3rem;margin-bottom:16px">&#128260;</div>
                 <h2 style="font-size:1.5rem;font-weight:700;margin-bottom:8px">Mise à jour en cours...</h2>
-                <p style="color:#94a3b8">L'application va redémarrer automatiquement.</p>
+                <p style="color:#94a3b8">Tu peux fermer cet onglet.<br>L'application va se relancer automatiquement.</p>
               </div>
             </div>`;
         }, 500);
       } catch(e) {
+        _updateInProgress = false;
         btn.disabled = false;
         textEl.textContent = 'Mise à jour';
         alert('La mise à jour a échoué. Vérifie ta connexion internet.');
@@ -4758,6 +4765,7 @@
     // ── Shutdown on tab close (avec délai pour permettre le reload) ──
     fetch('/api/cancel-shutdown', { method: 'POST' });  // annule un shutdown en cours si reload
     window.addEventListener('pagehide', () => {
+      if (_updateInProgress) return;  // pas de shutdown pendant une MAJ
       navigator.sendBeacon('/api/shutdown');
     });
 
