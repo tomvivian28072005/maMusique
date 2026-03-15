@@ -924,6 +924,16 @@
           </div>
         </div>
 
+        <!-- HEART: favorite toggle -->
+        <button id="btn-player-fav" onclick="togglePlayerFavorite()" class="p-1.5 text-gray-500 hover:text-white transition" title="Favoris" aria-label="Ajouter/Retirer des favoris">
+          <svg id="heart-outline" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
+          </svg>
+          <svg id="heart-filled" class="w-5 h-5 hidden" fill="#ef4444" stroke="#ef4444" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
+          </svg>
+        </button>
+
         <!-- RIGHT: volume -->
         <div class="flex items-center gap-2 w-1/4 justify-end">
           <button onclick="toggleMute()" class="p-1 text-gray-400 hover:text-white transition" title="Volume" aria-label="Couper/Rétablir le son">
@@ -2297,11 +2307,29 @@
         const data = await res.json();
         if (data.favorite) favoriteTrackIds.add(trackId);
         else favoriteTrackIds.delete(trackId);
+        updatePlayerHeart();
         // Re-render current view
         if (currentView === 'library') fetchTracks();
         else if (currentView === 'playlist-detail') fetchPlaylistTracks();
         fetchPlaylists(); // update track count in sidebar
       } catch (e) { }
+    }
+
+    function togglePlayerFavorite() {
+      if (activeTrackId) toggleFavorite(activeTrackId);
+    }
+
+    function updatePlayerHeart() {
+      const outline = document.getElementById('heart-outline');
+      const filled = document.getElementById('heart-filled');
+      if (!outline || !filled) return;
+      if (activeTrackId && favoriteTrackIds.has(activeTrackId)) {
+        outline.classList.add('hidden');
+        filled.classList.remove('hidden');
+      } else {
+        outline.classList.remove('hidden');
+        filled.classList.add('hidden');
+      }
     }
 
     // â”€â”€ Sort buttons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -2523,6 +2551,7 @@
       activeStartTime = startTime;
       activeEndTime = endTime;
       playCountedForCurrent = false;
+      updatePlayerHeart();
       
       document.getElementById('player-title').textContent = title || "Titre inconnu";
       document.getElementById('player-artist').textContent = artist || "Artiste inconnu";
