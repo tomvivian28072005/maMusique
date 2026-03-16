@@ -1,0 +1,12 @@
+{
+  "appId": "com.tomvivian.clom",
+  "appName": "Clom",
+  "webDir": "www",
+  "server": {
+    "cleartext": true,
+    "allowNavigation": ["*"]
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}

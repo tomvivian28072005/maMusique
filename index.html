@@ -1286,6 +1286,21 @@
   </div>
 
   <!-- ── MOBILE QR CODE MODAL ── -->
+  <!-- Modal configuration serveur (Capacitor/mobile uniquement) -->
+  <div id="server-config-modal" role="dialog" aria-label="Configuration serveur"
+    class="fixed inset-0 z-[60] hidden items-center justify-center bg-black/80 backdrop-blur-sm">
+    <div class="bg-gray-900 border border-gray-700 rounded-xl p-6 w-full max-w-sm mx-4 shadow-2xl text-center">
+      <h3 class="text-lg font-semibold text-white mb-2">Connexion au serveur</h3>
+      <p class="text-sm text-gray-400 mb-4">Entre l'adresse de ton PC<br>(affichée dans l'app PC → bouton Mobile)</p>
+      <input id="server-url-input" type="url" placeholder="http://192.168.1.170:9000"
+        class="w-full px-3 py-2 rounded-lg bg-dark-850 border border-gray-700 text-white text-sm mb-2 focus:outline-none focus:border-blue-500"
+        value="" />
+      <p id="server-config-error" class="text-red-400 text-xs mb-3 hidden"></p>
+      <button id="server-config-btn" onclick="connectToServer()"
+        class="w-full px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-500 transition">Connexion</button>
+    </div>
+  </div>
+
   <div id="mobile-qr-modal" role="dialog" aria-label="Accès mobile"
     class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 backdrop-blur-sm">
     <div class="bg-gray-900 border border-gray-700 rounded-xl p-6 w-full max-w-sm mx-4 shadow-2xl text-center">
@@ -1322,6 +1337,20 @@
 
   <script>
     // â"€â"€ State â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+    // ── Capacitor (mobile) ────────────────────────────────
+    const _isCapacitor = typeof window.Capacitor !== 'undefined';
+    let API_BASE = ''; // vide = relatif (PC), "http://192.168.x.x:9000" = mobile
+    if (_isCapacitor) {
+      API_BASE = localStorage.getItem('Clom_serverUrl') || '';
+    }
+    function clomFetch(path, options) {
+      return fetch(API_BASE + path, options);
+    }
+    function assetUrl(path) {
+      if (!path || !API_BASE) return path;
+      return path.startsWith('/') ? API_BASE + path : path;
+    }
+
     const audio = document.getElementById('audio-player');
     const previewAudio = new Audio(); // For trimming preview (if used)
 
@@ -1450,7 +1479,7 @@
     // â"€â"€ Sidebar playlists â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
     async function fetchPlaylists() {
       try {
-        const res = await fetch('/api/playlists');
+        const res = await clomFetch('/api/playlists');
         sidebarPlaylistsCache = await res.json();
         renderSidebar(sidebarPlaylistsCache);
       } catch (e) {
@@ -1572,7 +1601,7 @@
       if (newIdx < 0 || newIdx >= ids.length) return;
       ids.splice(idx, 1);
       ids.splice(newIdx, 0, playlistId);
-      await fetch('/api/playlists/reorder', {
+      await clomFetch('/api/playlists/reorder', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ playlist_ids: ids })
@@ -1620,11 +1649,11 @@
       if (pl && pl.cover_path) {
         if (isVideo(pl.cover_path)) {
           img.classList.add('hidden'); img.src = '';
-          video.src = pl.cover_path;
+          video.src = assetUrl(pl.cover_path);
           video.classList.remove('hidden');
         } else {
           video.classList.add('hidden'); video.src = '';
-          img.src = pl.cover_path;
+          img.src = assetUrl(pl.cover_path);
           img.classList.remove('hidden');
         }
         container.querySelector('svg').classList.add('hidden');
@@ -1783,13 +1812,13 @@
         let playlistId = id ? parseInt(id) : null;
 
         if (id) {
-          await fetch(`/api/playlists/${id}`, {
+          await clomFetch(`/api/playlists/${id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name })
           });
         } else {
-          const res = await fetch('/api/playlists', {
+          const res = await clomFetch('/api/playlists', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name })
@@ -1803,7 +1832,7 @@
         if (fileInput.files && fileInput.files[0] && playlistId) {
           const formData = new FormData();
           formData.append('file', fileInput.files[0]);
-          await fetch(`/api/playlists/${playlistId}/cover`, {
+          await clomFetch(`/api/playlists/${playlistId}/cover`, {
             method: 'POST',
             body: formData
           });
@@ -1814,7 +1843,7 @@
           const zoom = parseFloat(document.getElementById('playlist-cover-zoom-slider').value) || 1.0;
           const offsetX = parseFloat(document.getElementById('playlist-cover-offset-x').value) || 0.0;
           const offsetY = parseFloat(document.getElementById('playlist-cover-offset-y').value) || 0.0;
-          await fetch(`/api/playlists/${playlistId}`, {
+          await clomFetch(`/api/playlists/${playlistId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -1860,7 +1889,7 @@
 
     async function deletePlaylist(id) {
       if (!confirm('Supprimer cette playlist ?')) return;
-      await fetch(`/api/playlists/${id}`, { method: 'DELETE' });
+      await clomFetch(`/api/playlists/${id}`, { method: 'DELETE' });
       await fetchPlaylists();
       if (id === currentPlaylistId && sidebarPlaylistsCache.length > 0) {
         const first = sidebarPlaylistsCache[0];
@@ -1872,7 +1901,7 @@
     async function fetchPlaylistTracks() {
       if (!currentPlaylistId) return;
       try {
-        const res = await fetch(`/api/playlists/${currentPlaylistId}/tracks`);
+        const res = await clomFetch(`/api/playlists/${currentPlaylistId}/tracks`);
         const tracks = await res.json();
         playlistTracksCache = tracks;
         applyPlaylistSearch();
@@ -1996,7 +2025,7 @@
       if (!ids.length) return;
       if (!confirm(`Supprimer ${ids.length} titre(s) de la bibliothèque ?`)) return;
 
-      await Promise.allSettled(ids.map(id => fetch(`/api/tracks/${id}`, { method: 'DELETE' })));
+      await Promise.allSettled(ids.map(id => clomFetch(`/api/tracks/${id}`, { method: 'DELETE' })));
       selectedLibraryTrackIds = new Set();
       librarySelectionMode = false;
       await fetchTracks();
@@ -2009,7 +2038,7 @@
       if (!ids.length || !currentPlaylistId) return;
       if (!confirm(`Retirer ${ids.length} titre(s) de la playlist ?`)) return;
 
-      await Promise.allSettled(ids.map(id => fetch(`/api/playlists/${currentPlaylistId}/tracks/${id}`, { method: 'DELETE' })));
+      await Promise.allSettled(ids.map(id => clomFetch(`/api/playlists/${currentPlaylistId}/tracks/${id}`, { method: 'DELETE' })));
       selectedPlaylistTrackIds = new Set();
       playlistSelectionMode = false;
       await fetchPlaylistTracks();
@@ -2030,8 +2059,8 @@
       list.innerHTML = '<p class="text-gray-500 text-sm text-center py-4">Chargement…</p>';
       // Fetch playlists + membership for all selected tracks
       const [playlistsRes, ...memberResponses] = await Promise.all([
-        fetch('/api/playlists'),
-        ...ids.map(id => fetch(`/api/tracks/${id}/playlists`))
+        clomFetch('/api/playlists'),
+        ...ids.map(id => clomFetch(`/api/tracks/${id}/playlists`))
       ]);
       const playlists = await playlistsRes.json();
       const memberSets = await Promise.all(memberResponses.map(r => r.json()));
@@ -2044,7 +2073,7 @@
           class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition ${allIn ? 'opacity-40 cursor-default' : 'hover:bg-gray-800'}">
           <div class="w-8 h-8 rounded bg-gray-800 flex items-center justify-center flex-shrink-0 overflow-hidden">
             ${p.cover_path
-          ? `<img src="${p.cover_path}" alt="${escapeHtml(p.name)}" class="w-full h-full object-cover" />`
+          ? `<img src="${assetUrl(p.cover_path)}" alt="${escapeHtml(p.name)}" class="w-full h-full object-cover" />`
           : `<svg class="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 24 24"><path d="M9 3v11.586a3 3 0 1 0 2 2.829V8h6V3H9z"/></svg>`}
           </div>
           <span class="text-sm text-gray-300">${escapeHtml(p.name)}</span>
@@ -2056,7 +2085,7 @@
     async function addSelectedTracksToPickedPlaylist(playlistId) {
       if (!pickTrackIds.length) return;
 
-      await Promise.allSettled(pickTrackIds.map(trackId => fetch(`/api/playlists/${playlistId}/tracks`, {
+      await Promise.allSettled(pickTrackIds.map(trackId => clomFetch(`/api/playlists/${playlistId}/tracks`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ track_id: trackId })
@@ -2130,14 +2159,14 @@
           img.classList.add('hidden');
           img.src = '';
           video.classList.remove('hidden');
-          video.src = currentPlaylistCover;
+          video.src = assetUrl(currentPlaylistCover);
           video.style.transform = transform;
           video.style.transformOrigin = 'center';
         } else {
           video.classList.add('hidden');
           video.src = '';
           img.classList.remove('hidden');
-          img.src = currentPlaylistCover;
+          img.src = assetUrl(currentPlaylistCover);
           img.style.transform = transform;
           img.style.transformOrigin = 'center';
         }
@@ -2160,7 +2189,7 @@
       // Fetch and display total duration
       const durEl = document.getElementById('playlist-detail-duration');
       if (durEl && currentPlaylistId) {
-        fetch(`/api/playlists/${currentPlaylistId}/duration`)
+        clomFetch(`/api/playlists/${currentPlaylistId}/duration`)
           .then(r => r.json())
           .then(d => {
             const s = Math.round(d.total_seconds || 0);
@@ -2203,8 +2232,8 @@
 
       // Fetch all tracks and current playlist tracks
       const [allRes, plRes] = await Promise.all([
-        fetch('/api/tracks?sort_by=title'),
-        fetch(`/api/playlists/${currentPlaylistId}/tracks`)
+        clomFetch('/api/tracks?sort_by=title'),
+        clomFetch(`/api/playlists/${currentPlaylistId}/tracks`)
       ]);
       allTracksCache = await allRes.json();
       playlistTracksCache = await plRes.json();
@@ -2255,7 +2284,7 @@
     }
 
     async function addTrackToPlaylist(trackId, el) {
-      await fetch(`/api/playlists/${currentPlaylistId}/tracks`, {
+      await clomFetch(`/api/playlists/${currentPlaylistId}/tracks`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ track_id: trackId })
@@ -2283,7 +2312,7 @@
 
     async function removeFromPlaylist(trackId) {
       if (!currentPlaylistId) return;
-      await fetch(`/api/playlists/${currentPlaylistId}/tracks/${trackId}`, { method: 'DELETE' });
+      await clomFetch(`/api/playlists/${currentPlaylistId}/tracks/${trackId}`, { method: 'DELETE' });
       fetchPlaylistTracks();
       fetchPlaylists();
     }
@@ -2295,7 +2324,7 @@
       imgContainer.innerHTML = '<p class="text-gray-500 text-sm py-8">Chargement…</p>';
       urlEl.textContent = '';
       try {
-        const res = await fetch('/api/network-info');
+        const res = await clomFetch('/api/network-info');
         const data = await res.json();
         urlEl.textContent = data.url;
         if (data.qr_base64) {
@@ -2333,8 +2362,8 @@
       const list = document.getElementById('pick-playlist-list');
       list.innerHTML = '<p class="text-gray-500 text-sm text-center py-4">Chargement…</p>';
       const [playlistsRes, memberRes] = await Promise.all([
-        fetch('/api/playlists'),
-        fetch(`/api/tracks/${trackId}/playlists`)
+        clomFetch('/api/playlists'),
+        clomFetch(`/api/tracks/${trackId}/playlists`)
       ]);
       const playlists = await playlistsRes.json();
       const memberData = await memberRes.json();
@@ -2346,7 +2375,7 @@
           class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition hover:bg-gray-800">
           <div class="w-8 h-8 rounded bg-gray-800 flex items-center justify-center flex-shrink-0 overflow-hidden">
             ${p.cover_path
-          ? `<img src="${p.cover_path}" alt="${escapeHtml(p.name)}" class="w-full h-full object-cover" />`
+          ? `<img src="${assetUrl(p.cover_path)}" alt="${escapeHtml(p.name)}" class="w-full h-full object-cover" />`
           : `<svg class="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 24 24"><path d="M9 3v11.586a3 3 0 1 0 2 2.829V8h6V3H9z"/></svg>`}
           </div>
           <span class="text-sm text-gray-300 flex-1">${escapeHtml(p.name)}</span>
@@ -2361,9 +2390,9 @@
       const btn = document.querySelector(`[data-pick-playlist-id="${playlistId}"]`);
       if (btn) btn.style.opacity = '0.5';
       if (wasIn) {
-        await fetch(`/api/playlists/${playlistId}/tracks/${trackId}`, { method: 'DELETE' });
+        await clomFetch(`/api/playlists/${playlistId}/tracks/${trackId}`, { method: 'DELETE' });
       } else {
-        await fetch(`/api/playlists/${playlistId}/tracks`, {
+        await clomFetch(`/api/playlists/${playlistId}/tracks`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ track_id: trackId })
@@ -2392,7 +2421,7 @@
       const trackId = pickTrackIds.length ? pickTrackIds[0] : pickTrackId;
       if (!trackId) return;
 
-      await fetch(`/api/playlists/${playlistId}/tracks`, {
+      await clomFetch(`/api/playlists/${playlistId}/tracks`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ track_id: trackId })
@@ -2416,7 +2445,7 @@
     // â"€â"€ Favorites (Coup de cœur) â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
     async function fetchFavorites() {
       try {
-        const res = await fetch('/api/favorites');
+        const res = await clomFetch('/api/favorites');
         const data = await res.json();
         favoriteTrackIds = new Set(data.track_ids || []);
       } catch (e) { }
@@ -2425,7 +2454,7 @@
     async function toggleFavorite(trackId, e) {
       if (e) e.stopPropagation();
       try {
-        const res = await fetch(`/api/tracks/${trackId}/toggle-favorite`, { method: 'POST' });
+        const res = await clomFetch(`/api/tracks/${trackId}/toggle-favorite`, { method: 'POST' });
         const data = await res.json();
         if (data.favorite) favoriteTrackIds.add(trackId);
         else favoriteTrackIds.delete(trackId);
@@ -2480,7 +2509,7 @@
       const params = new URLSearchParams({ sort_by: currentSort });
       if (searchQuery) params.append('search', searchQuery);
       try {
-        const res = await fetch(`/api/tracks?${params}`);
+        const res = await clomFetch(`/api/tracks?${params}`);
         const tracks = await res.json();
         renderTracks(tracks);
       } catch(e) { console.error('Error in fetchTracks:', e); document.getElementById('track-list').innerHTML = '<p class="text-red-400 text-sm py-6 text-left">Erreur: <b>' + (e.message || String(e)) + '</b><br><br><pre style="white-space:pre-wrap;font-size:10px;">' + (e.stack || '') + '</pre></p>';
@@ -2685,7 +2714,7 @@
 
       // Add cache-busting timestamp to prevent browsing serving old file after replacement
       if (path) {
-        audio.src = path + (path.includes('?') ? '&' : '?') + 't=' + Date.now();
+        audio.src = assetUrl(path) + (path.includes('?') ? '&' : '?') + 't=' + Date.now();
         audio.load();  // Force readyState reset so we always wait for loadedmetadata
       }
       
@@ -2699,6 +2728,8 @@
             playlistTracksCache.find(x => x.id == id) ||
             (typeof allTracksCache !== 'undefined' ? allTracksCache.find(x => x.id == id) : null)
           );
+          // Media Session API (contrôles notification Android)
+          updateMediaSession(title, artist, track ? track.cover_path : null);
           if (track && track.cover_path) {
             updatePlayerCover(track.cover_path, track.cover_zoom, track.cover_offset_x, track.cover_offset_y);
             // Update fullscreen cover if in that view
@@ -2728,7 +2759,7 @@
                 });
                 if (isVideo(track.cover_path)) {
                   fullscreenImg.classList.add('hidden'); fullscreenImg.src = '';
-                  fullscreenVideo.src = track.cover_path;
+                  fullscreenVideo.src = assetUrl(track.cover_path);
                   fullscreenVideo.classList.remove('hidden');
                   fullscreenVideo.style.transform = transform;
                   noCoverBg.classList.add('hidden');
@@ -2736,7 +2767,7 @@
                   return waitForMediaReady(fullscreenVideo, 'loadeddata');
                 } else {
                   fullscreenVideo.classList.add('hidden'); fullscreenVideo.src = '';
-                  fullscreenImg.src = track.cover_path;
+                  fullscreenImg.src = assetUrl(track.cover_path);
                   fullscreenImg.classList.remove('hidden');
                   fullscreenImg.style.transform = transform;
                   noCoverBg.classList.add('hidden');
@@ -3075,14 +3106,14 @@
       video.classList.add('hidden');
       video.src = '';
       if (isVideo(coverPath)) {
-        extractVideoFrame(coverPath, frameUrl => {
+        extractVideoFrame(assetUrl(coverPath), frameUrl => {
           img.classList.remove('hidden');
           img.src = frameUrl;
           img.style.transform = transform;
         });
       } else {
         img.classList.remove('hidden');
-        img.src = coverPath;
+        img.src = assetUrl(coverPath);
         img.style.transform = transform;
       }
     }
@@ -3556,7 +3587,7 @@
       document.getElementById('player-time').textContent = formatTime(vTime);
       if (!playCountedForCurrent && activeTrackId && vTime >= vDur / 2) {
         playCountedForCurrent = true;
-        fetch(`/api/tracks/${activeTrackId}/played`, { method: 'POST' });
+        clomFetch(`/api/tracks/${activeTrackId}/played`, { method: 'POST' });
       }
       // Stop at end_time trim point
       if (activeEndTime != null && audio.currentTime >= activeEndTime && !audio.paused) {
@@ -3598,7 +3629,7 @@
         document.getElementById('player').classList.add('hidden');
         activeTrackId = null;
       }
-      await fetch(`/api/tracks/${id}`, { method: 'DELETE' });
+      await clomFetch(`/api/tracks/${id}`, { method: 'DELETE' });
       fetchTracks();
     }
 
@@ -3626,7 +3657,7 @@
       queue.prepend(item);
 
       try {
-        const res = await fetch('/api/download', {
+        const res = await clomFetch('/api/download', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url })
@@ -3641,7 +3672,7 @@
           const pct = el.querySelector('[data-pct]');
           const status = el.querySelector('[data-status]');
           try {
-            const st = await (await fetch(`/api/download/status?url=${encodeURIComponent(url)}`)).json();
+            const st = await (await clomFetch(`/api/download/status?url=${encodeURIComponent(url)}`)).json();
             if (st.status === 'queued') {
               bar.style.width = '5%'; status.textContent = 'En attente…';
             } else if (st.status === 'downloading') {
@@ -3710,7 +3741,7 @@
       queue.prepend(item);
 
       try {
-        const res = await fetch('/api/search-download', {
+        const res = await clomFetch('/api/search-download', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ title, artist })
@@ -3726,7 +3757,7 @@
           const pct = el.querySelector('[data-pct]');
           const status = el.querySelector('[data-status]');
           try {
-            const st = await (await fetch(`/api/search-download/status?key=${encodeURIComponent(key)}`)).json();
+            const st = await (await clomFetch(`/api/search-download/status?key=${encodeURIComponent(key)}`)).json();
             if (st.status === 'queued') {
               bar.style.width = '5%'; status.textContent = 'En attente…';
             } else if (st.status === 'searching') {
@@ -3905,7 +3936,7 @@
       document.getElementById('trim-end').value = endTime != null ? formatTime(endTime) : '';
 
       // Setup preview audio
-      previewAudio.src = filePath;
+      previewAudio.src = assetUrl(filePath);
       previewAudio.volume = Math.min(1, Math.max(0, coeff));
       previewDuration = 0;
       document.getElementById('preview-bar').style.width = '0%';
@@ -3915,7 +3946,7 @@
       document.getElementById('preview-icon-pause').classList.add('hidden');
 
       // Load cover data from track
-      fetch(`/api/tracks?sort_by=added_at`)
+      clomFetch(`/api/tracks?sort_by=added_at`)
         .then(r => r.json())
         .then(tracks => {
           const track = tracks.find(t => t.id == id);
@@ -3924,11 +3955,11 @@
             const video = document.getElementById('rename-cover-video');
             if (isVideo(track.cover_path)) {
               img.classList.add('hidden'); img.src = '';
-              video.src = track.cover_path;
+              video.src = assetUrl(track.cover_path);
               video.classList.remove('hidden');
             } else {
               video.classList.add('hidden'); video.src = '';
-              img.src = track.cover_path;
+              img.src = assetUrl(track.cover_path);
               img.classList.remove('hidden');
             }
             document.getElementById('rename-cover-preview').querySelector('svg').classList.add('hidden');
@@ -4320,7 +4351,7 @@
 
       try {
         // 1) Send PATCH request to update track metadata
-        const res = await fetch(`/api/tracks/${id}`, {
+        const res = await clomFetch(`/api/tracks/${id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body)
@@ -4365,7 +4396,7 @@
         if (coverFile) {
           const formData = new FormData();
           formData.append('file', coverFile);
-          const coverRes = await fetch(`/api/tracks/${id}/cover`, {
+          const coverRes = await clomFetch(`/api/tracks/${id}/cover`, {
             method: 'POST',
             body: formData
           });
@@ -4495,7 +4526,7 @@
       
       replacementPollTimer = setInterval(async () => {
         try {
-          const res = await fetch(`/api/tracks/${trackId}/replace-status`);
+          const res = await clomFetch(`/api/tracks/${trackId}/replace-status`);
           const st = await res.json();
           
           if (st.status === 'done') {
@@ -4577,7 +4608,7 @@
       formData.append('file', fileInput.files[0]);
 
       try {
-        const res = await fetch('/api/import/deezer', { method: 'POST', body: formData });
+        const res = await clomFetch('/api/import/deezer', { method: 'POST', body: formData });
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail || 'Erreur');
 
@@ -4644,7 +4675,7 @@
       btn.textContent = 'Import…';
 
       try {
-        const res = await fetch('/api/import/folder-audio', { method: 'POST', body: formData });
+        const res = await clomFetch('/api/import/folder-audio', { method: 'POST', body: formData });
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail || 'Erreur import.');
 
@@ -4668,7 +4699,7 @@
       const btn = document.getElementById('import-stop-btn');
       btn.disabled = true;
       btn.textContent = 'Arrêt en cours...';
-      try { await fetch('/api/import/stop', { method: 'POST' }); } catch(e) {}
+      try { await clomFetch('/api/import/stop', { method: 'POST' }); } catch(e) {}
     }
 
     function pollImportStatus() {
@@ -4683,7 +4714,7 @@
 
       importPollTimer = setInterval(async () => {
         try {
-          const st = await (await fetch('/api/import/status')).json();
+          const st = await (await clomFetch('/api/import/status')).json();
           const pct = st.total > 0 ? Math.round((st.done / st.total) * 100) : 0;
 
           document.getElementById('import-bar').style.width = pct + '%';
@@ -4748,7 +4779,7 @@
     }
 
     // Check if import is running on page load
-    fetch('/api/import/status').then(r => r.json()).then(st => {
+    clomFetch('/api/import/status').then(r => r.json()).then(st => {
       if (st.running) {
         document.getElementById('import-zone').classList.remove('hidden');
         document.getElementById('import-btn').disabled = true;
@@ -4765,10 +4796,11 @@
       return clean.toLowerCase().endsWith('.mp4');
     }
     function coverMediaTag(src, classes, style, alt) {
+      const url = assetUrl(src);
       if (isVideo(src)) {
-        return `<video src="${src}" class="${classes}" ${style ? `style="${style}"` : ''} autoplay loop muted playsinline></video>`;
+        return `<video src="${url}" class="${classes}" ${style ? `style="${style}"` : ''} autoplay loop muted playsinline></video>`;
       }
-      return `<img src="${src}" alt="${escapeHtml(alt || 'Couverture')}" class="${classes}" ${style ? `style="${style}"` : ''} />`;
+      return `<img src="${url}" alt="${escapeHtml(alt || 'Couverture')}" class="${classes}" ${style ? `style="${style}"` : ''} />`;
     }
     function escapeHtml(s) {
       return String(s)
@@ -4845,14 +4877,14 @@
           document.getElementById('player-artist').textContent = saved.artist;
           document.getElementById('fullscreen-title').textContent = saved.title;
           document.getElementById('fullscreen-artist').textContent = saved.artist;
-          audio.src = saved.path;
+          audio.src = assetUrl(saved.path);
           audio.preload = 'metadata';
           applyVolume();
           document.getElementById('player').classList.remove('hidden');
           updatePlayerMarquees();
 
           // Refresh from backend to get latest values (title, artist, volume, trim, cover, etc.)
-          fetch(`/api/tracks?sort_by=added_at`)
+          clomFetch(`/api/tracks?sort_by=added_at`)
             .then(r => r.json())
             .then(tracks => {
               const track = tracks.find(t => t.id === saved.id);
@@ -4911,7 +4943,7 @@
     async function checkForUpdates() {
       try {
         const [localRes, remoteRes] = await Promise.all([
-          fetch('/api/version'),
+          clomFetch('/api/version'),
           fetch('https://api.github.com/repos/tomvivian28072005/maMusique/releases/latest')
         ]);
         if (!localRes.ok || !remoteRes.ok) return;
@@ -4929,12 +4961,60 @@
       } catch(e) { /* pas de connexion ou pas de release, on ignore */ }
     }
 
+    // ── Capacitor: config serveur ───────────────────────
+    async function connectToServer() {
+      const input = document.getElementById('server-url-input');
+      const errEl = document.getElementById('server-config-error');
+      const btn = document.getElementById('server-config-btn');
+      let url = input.value.trim().replace(/\/+$/, '');
+      if (!url) { errEl.textContent = 'Entre une adresse'; errEl.classList.remove('hidden'); return; }
+      if (!url.startsWith('http')) url = 'http://' + url;
+      btn.textContent = 'Connexion…'; btn.disabled = true;
+      errEl.classList.add('hidden');
+      try {
+        const r = await fetch(url + '/api/version', { signal: AbortSignal.timeout(5000) });
+        if (!r.ok) throw new Error('Serveur inaccessible');
+        API_BASE = url;
+        localStorage.setItem('Clom_serverUrl', url);
+        hideModal('server-config-modal');
+        initApp();
+      } catch(e) {
+        errEl.textContent = 'Impossible de joindre le serveur. Vérifie l\'adresse et que ton PC est allumé.';
+        errEl.classList.remove('hidden');
+      } finally {
+        btn.textContent = 'Connexion'; btn.disabled = false;
+      }
+    }
+
+    function showServerConfig() {
+      const input = document.getElementById('server-url-input');
+      input.value = API_BASE || 'http://192.168.';
+      document.getElementById('server-config-error').classList.add('hidden');
+      showModal('server-config-modal');
+    }
+
+    // ── Media Session (contrôles notification Android) ──
+    function updateMediaSession(title, artist, coverPath) {
+      if (!('mediaSession' in navigator)) return;
+      const artwork = coverPath ? [{ src: assetUrl(coverPath), sizes: '512x512', type: 'image/jpeg' }] : [];
+      navigator.mediaSession.metadata = new MediaMetadata({ title, artist, artwork });
+      navigator.mediaSession.setActionHandler('play', () => { audio.play(); });
+      navigator.mediaSession.setActionHandler('pause', () => { audio.pause(); });
+      navigator.mediaSession.setActionHandler('previoustrack', () => { playPrev(); });
+      navigator.mediaSession.setActionHandler('nexttrack', () => { playNext(); });
+    }
+
     async function initApp() {
+      // Sur mobile Capacitor, afficher l'écran de config si pas encore configuré
+      if (_isCapacitor && !API_BASE) {
+        showServerConfig();
+        return; // initApp sera rappelé après connexion
+      }
       setSort('added_at');
       restoreLastState();
       await Promise.all([fetchPlaylists(), fetchFavorites()]);
-      // Vérifier les mises à jour en arrière-plan (non bloquant)
-      checkForUpdates();
+      // Vérifier les mises à jour en arrière-plan (non bloquant) — PC uniquement
+      if (!_isCapacitor) checkForUpdates();
 
       // Restore last playlist or default to first
       const lastPlId = parseInt(localStorage.getItem('Clom_lastPlaylistId'));
@@ -4980,7 +5060,7 @@
       }
 
       try {
-        const res = await fetch('/api/update', { method: 'POST' });
+        const res = await clomFetch('/api/update', { method: 'POST' });
         if (!res.ok) throw new Error('server-error');
         textEl.textContent = 'Installation...';
         setTimeout(showUpdateScreen, 500);
@@ -4998,11 +5078,13 @@
     }
 
     // ── Shutdown on tab close (avec délai pour permettre le reload) ──
-    fetch('/api/cancel-shutdown', { method: 'POST' });  // annule un shutdown en cours si reload
-    window.addEventListener('pagehide', () => {
-      if (_updateInProgress) return;  // pas de shutdown pendant une MAJ
-      navigator.sendBeacon('/api/shutdown');
-    });
+    if (!_isCapacitor) {
+      clomFetch('/api/cancel-shutdown', { method: 'POST' });  // annule un shutdown en cours si reload
+      window.addEventListener('pagehide', () => {
+        if (_updateInProgress) return;  // pas de shutdown pendant une MAJ
+        navigator.sendBeacon(API_BASE + '/api/shutdown');
+      });
+    }
 
     // ── Onboarding ──────────────────────────────────
     const onboardingSteps = [

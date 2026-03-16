@@ -23,6 +23,10 @@ dist/
 build/
 *.spec
 
+# Android (Capacitor)
+android/app/build/
+www/
+
 # OS
 Thumbs.db
 Desktop.ini

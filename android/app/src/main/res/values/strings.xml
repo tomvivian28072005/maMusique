@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Clom</string>
+    <string name="title_activity_main">Clom</string>
+    <string name="package_name">com.tomvivian.clom</string>
+    <string name="custom_url_scheme">com.tomvivian.clom</string>
+</resources>
