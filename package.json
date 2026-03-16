@@ -7,9 +7,11 @@
     "doc": "docs"
   },
   "dependencies": {
+    "@capacitor-community/sqlite": "^8.0.1",
     "@capacitor/android": "^8.2.0",
     "@capacitor/cli": "^8.2.0",
     "@capacitor/core": "^8.2.0",
+    "@capacitor/filesystem": "^8.1.2",
     "acorn": "^8.16.0",
     "acorn-loose": "^8.5.2"
   },

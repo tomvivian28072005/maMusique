@@ -1335,18 +1335,24 @@
     </div>
   </div>
 
+  <script src="local-db.js"></script>
+  <script src="api-local.js"></script>
   <script>
     // â"€â"€ State â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
     // ── Capacitor (mobile) ────────────────────────────────
     const _isCapacitor = typeof window.Capacitor !== 'undefined';
-    let API_BASE = ''; // vide = relatif (PC), "http://192.168.x.x:9000" = mobile
-    if (_isCapacitor) {
-      API_BASE = localStorage.getItem('Clom_serverUrl') || '';
-    }
+    const _isOfflineMode = _isCapacitor; // mobile = offline (DB locale)
+    let API_BASE = '';
+    let _localDbReady = false;
+
     function clomFetch(path, options) {
+      if (_isOfflineMode && _localDbReady) {
+        return handleLocalApi(path, options);
+      }
       return fetch(API_BASE + path, options);
     }
     function assetUrl(path) {
+      if (_isOfflineMode) return path; // déjà résolu par resolveTrackUrls
       if (!path || !API_BASE) return path;
       return path.startsWith('/') ? API_BASE + path : path;
     }
@@ -3636,6 +3642,10 @@
     // â"€â"€ Download â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
     let _dlCounter = 0;
     async function startDownload() {
+      if (_isOfflineMode) {
+        alert('Le téléchargement nécessite le PC. Télécharge tes morceaux sur le PC puis synchronise.');
+        return;
+      }
       const input = document.getElementById('yt-url');
       const url = input.value.trim();
       if (!url) return;
@@ -3715,6 +3725,10 @@
 
     let _searchDlCounter = 0;
     async function startSearchDownload() {
+      if (_isOfflineMode) {
+        alert('Le téléchargement nécessite le PC. Télécharge tes morceaux sur le PC puis synchronise.');
+        return;
+      }
       const titleInput = document.getElementById('search-dl-title');
       const artistInput = document.getElementById('search-dl-artist');
       const title = titleInput.value.trim();
@@ -5005,10 +5019,18 @@
     }
 
     async function initApp() {
-      // Sur mobile Capacitor, afficher l'écran de config si pas encore configuré
-      if (_isCapacitor && !API_BASE) {
-        showServerConfig();
-        return; // initApp sera rappelé après connexion
+      // Sur mobile Capacitor : initialiser la DB locale
+      if (_isOfflineMode && !_localDbReady) {
+        try {
+          await initLocalDB();
+          _localDbReady = true;
+          console.log('[Clom] Mode offline prêt');
+        } catch (err) {
+          console.error('[Clom] Erreur init DB locale:', err);
+          // Fallback : proposer connexion au PC
+          showServerConfig();
+          return;
+        }
       }
       setSort('added_at');
       restoreLastState();
