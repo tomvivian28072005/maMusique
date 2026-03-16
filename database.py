@@ -184,7 +184,7 @@ def update_playlist(db: Session, playlist_id: int, name: str = None, cover_path:
     if cover_path is not None:
         playlist.cover_path = cover_path
     if cover_zoom is not None:
-        playlist.cover_zoom = max(0.5, min(3.0, cover_zoom))
+        playlist.cover_zoom = max(0.5, min(5.0, cover_zoom))
     if cover_offset_x is not None:
         playlist.cover_offset_x = max(-1.0, min(1.0, cover_offset_x))
     if cover_offset_y is not None:

@@ -124,7 +124,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-APP_VERSION = "0.1.11.1"
+APP_VERSION = "0.1.12"
 
 app = FastAPI(title="Clom", version=APP_VERSION, lifespan=lifespan)
 
@@ -751,7 +751,7 @@ async def api_rename_track(track_id: int, req: RenameRequest, background_tasks: 
             background_tasks.add_task(replace_track_worker, track_id, url)
 
     if req.volume_coeff is not None:
-        track.volume_coeff = max(0.5, min(3.0, req.volume_coeff))
+        track.volume_coeff = max(0.5, min(5.0, req.volume_coeff))
     if req.clear_start_time:
         track.start_time = None
     elif req.start_time is not None:

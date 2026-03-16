@@ -883,8 +883,8 @@
                 File d'attente
               </button>
               <button onclick="event.stopPropagation(); closeAllMenus(); if(activeTrackId) openPickPlaylist(activeTrackId)">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"/></svg>
-                Ajouter
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 3v11.586a3 3 0 1 0 2 2.829V8h6V3H9z"/></svg>
+                Playlists
               </button>
             </div>
           </div>
@@ -990,7 +990,7 @@
 
       <!-- Volume coefficient -->
       <label class="block text-xs text-gray-400 mb-1">Volume : <span id="rename-coeff-display">1.00</span>×</label>
-      <input id="rename-coeff" type="range" min="0.5" max="3" step="0.05" value="1"
+      <input id="rename-coeff" type="range" min="0.5" max="5" step="0.05" value="1"
         oninput="document.getElementById('rename-coeff-display').textContent = parseFloat(this.value).toFixed(2); updatePreviewVolume()"
         class="w-full accent-violet-500 mb-4" />
 
@@ -2005,19 +2005,29 @@
       if (titleEl) titleEl.textContent = `Ajouter ${ids.length} morceau${ids.length > 1 ? 'x' : ''} à une playlist`;
       const list = document.getElementById('pick-playlist-list');
       list.innerHTML = '<p class="text-gray-500 text-sm text-center py-4">Chargement…</p>';
-      const res = await fetch('/api/playlists');
-      const playlists = await res.json();
-      list.innerHTML = playlists.map(p => `
-        <button onclick="addSelectedTracksToPickedPlaylist(${p.id})"
-          class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left hover:bg-gray-800 transition">
+      // Fetch playlists + membership for all selected tracks
+      const [playlistsRes, ...memberResponses] = await Promise.all([
+        fetch('/api/playlists'),
+        ...ids.map(id => fetch(`/api/tracks/${id}/playlists`))
+      ]);
+      const playlists = await playlistsRes.json();
+      const memberSets = await Promise.all(memberResponses.map(r => r.json()));
+      // A playlist is "full" if ALL selected tracks are already in it
+      const allInPlaylist = (playlistId) => memberSets.every(m => (m.playlist_ids || []).includes(playlistId));
+      list.innerHTML = playlists.map(p => {
+        const allIn = allInPlaylist(p.id);
+        return `
+        <button ${allIn ? 'disabled' : `onclick="addSelectedTracksToPickedPlaylist(${p.id})"`}
+          class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition ${allIn ? 'opacity-40 cursor-default' : 'hover:bg-gray-800'}">
           <div class="w-8 h-8 rounded bg-gray-800 flex items-center justify-center flex-shrink-0 overflow-hidden">
             ${p.cover_path
           ? `<img src="${p.cover_path}" alt="${escapeHtml(p.name)}" class="w-full h-full object-cover" />`
           : `<svg class="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 24 24"><path d="M9 3v11.586a3 3 0 1 0 2 2.829V8h6V3H9z"/></svg>`}
           </div>
           <span class="text-sm text-gray-300">${escapeHtml(p.name)}</span>
-        </button>
-      `).join('');
+          ${allIn ? '<span class="text-[10px] text-gray-500 ml-auto">Déjà ajouté</span>' : ''}
+        </button>`;
+      }).join('');
     }
 
     async function addSelectedTracksToPickedPlaylist(playlistId) {
@@ -2276,7 +2286,7 @@
       closeAllMenus();
       showModal('pick-playlist-modal');
       const titleEl = document.getElementById('pick-playlist-title');
-      if (titleEl) titleEl.textContent = 'Ajouter à une playlist';
+      if (titleEl) titleEl.textContent = 'Gérer les playlists';
       const list = document.getElementById('pick-playlist-list');
       list.innerHTML = '<p class="text-gray-500 text-sm text-center py-4">Chargement…</p>';
       const [playlistsRes, memberRes] = await Promise.all([
@@ -2287,19 +2297,52 @@
       const memberData = await memberRes.json();
       const memberSet = new Set(memberData.playlist_ids || []);
       list.innerHTML = playlists.map(p => {
-        const alreadyIn = memberSet.has(p.id);
+        const isIn = memberSet.has(p.id);
         return `
-        <button ${alreadyIn ? 'disabled' : `onclick="addTrackToPickedPlaylist(${p.id})"`}
-          class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition ${alreadyIn ? 'opacity-40 cursor-default' : 'hover:bg-gray-800'}">
+        <button onclick="toggleTrackInPlaylist(${trackId}, ${p.id}, ${isIn})" data-pick-playlist-id="${p.id}" data-pick-is-in="${isIn}"
+          class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition hover:bg-gray-800">
           <div class="w-8 h-8 rounded bg-gray-800 flex items-center justify-center flex-shrink-0 overflow-hidden">
             ${p.cover_path
           ? `<img src="${p.cover_path}" alt="${escapeHtml(p.name)}" class="w-full h-full object-cover" />`
           : `<svg class="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 24 24"><path d="M9 3v11.586a3 3 0 1 0 2 2.829V8h6V3H9z"/></svg>`}
           </div>
-          <span class="text-sm text-gray-300">${escapeHtml(p.name)}</span>
-          ${alreadyIn ? '<span class="text-[10px] text-gray-500 ml-auto">Déjà ajouté</span>' : ''}
+          <span class="text-sm text-gray-300 flex-1">${escapeHtml(p.name)}</span>
+          <div class="w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${isIn ? 'bg-brand-600 border-brand-600' : 'border-gray-600'}">
+            ${isIn ? '<svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>' : ''}
+          </div>
         </button>`;
       }).join('');
+    }
+
+    async function toggleTrackInPlaylist(trackId, playlistId, wasIn) {
+      const btn = document.querySelector(`[data-pick-playlist-id="${playlistId}"]`);
+      if (btn) btn.style.opacity = '0.5';
+      if (wasIn) {
+        await fetch(`/api/playlists/${playlistId}/tracks/${trackId}`, { method: 'DELETE' });
+      } else {
+        await fetch(`/api/playlists/${playlistId}/tracks`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ track_id: trackId })
+        });
+      }
+      // Update checkbox UI
+      const nowIn = !wasIn;
+      if (btn) {
+        btn.setAttribute('data-pick-is-in', nowIn);
+        btn.setAttribute('onclick', `toggleTrackInPlaylist(${trackId}, ${playlistId}, ${nowIn})`);
+        btn.style.opacity = '1';
+        const checkbox = btn.querySelector('.w-5.h-5');
+        if (checkbox) {
+          checkbox.className = `w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${nowIn ? 'bg-brand-600 border-brand-600' : 'border-gray-600'}`;
+          checkbox.innerHTML = nowIn ? '<svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>' : '';
+        }
+      }
+      // Refresh data
+      await fetchFavorites();
+      if (currentView === 'playlist-detail') await fetchPlaylistTracks();
+      if (currentView === 'library') await fetchTracks();
+      await fetchPlaylists();
     }
 
     async function addTrackToPickedPlaylist(playlistId) {
@@ -2320,13 +2363,11 @@
       if (currentPlaylistId === playlistId) {
         await fetchPlaylistTracks();
       } else if (currentView === 'playlist-detail') {
-        // Even if we added to a *different* playlist, maybe it was "Coup de coeur", so refresh current hearts
         await fetchPlaylistTracks();
       }
 
-      // Update global view if necessary (favorites changed)
       if (currentView === 'library') await fetchTracks();
-      await fetchPlaylists(); // update sidebar counts
+      await fetchPlaylists();
     }
 
     // â"€â"€ Favorites (Coup de cœur) â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
@@ -2484,8 +2525,8 @@
                   File d'attente
                 </button>
                 <button onclick="event.stopPropagation(); openPickPlaylist(${t.id})">
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"/></svg>
-                  Ajouter
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 3v11.586a3 3 0 1 0 2 2.829V8h6V3H9z"/></svg>
+                  Playlists
                 </button>
                 ${prefix === 'plt' ? `
                 <button class="menu-delete" onclick="event.stopPropagation(); closeAllMenus(); removeFromPlaylist(${t.id})">
@@ -3040,7 +3081,7 @@
         applyUpdate();
         return;
       }
-      const fadeOutMs = 220;
+      const fadeOutMs = 300; // match CSS transition-opacity duration-300
       container.classList.add('opacity-0');
       window.setTimeout(() => {
         Promise.resolve(applyUpdate())
