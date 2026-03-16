@@ -5,3 +5,4 @@ mutagen==1.47.0
 sqlalchemy==2.0.36
 python-multipart==0.0.12
 aiofiles==24.1.0
+qrcode[pil]==8.2

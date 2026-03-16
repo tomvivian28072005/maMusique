@@ -1,6 +1,9 @@
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, ForeignKey, UniqueConstraint, text
 from sqlalchemy.orm import DeclarativeBase, sessionmaker, Session, relationship
 from datetime import datetime
+import time as _time
+import json as _json
+import uuid as _uuid
 
 DATABASE_URL = "sqlite:///./music.db"
 
@@ -61,6 +64,110 @@ class PlaylistTrack(Base):
     __table_args__ = (
         UniqueConstraint("playlist_id", "track_id", name="uq_playlist_track"),
     )
+
+
+# ── Sync — Journal de modifications ───────────────────────────
+
+class ChangeLog(Base):
+    __tablename__ = "change_log"
+
+    id = Column(Integer, primary_key=True, index=True)
+    device_id = Column(String, nullable=False)        # UUID de l'appareil source
+    entity_type = Column(String, nullable=False)       # "track", "playlist", "playlist_track"
+    entity_id = Column(Integer, nullable=False)        # ID de l'entité modifiée
+    action = Column(String, nullable=False)            # "create", "update", "delete"
+    data = Column(String, nullable=True)               # JSON snapshot (pour create/update)
+    timestamp = Column(Float, nullable=False)          # Unix timestamp précis
+
+
+class SyncDevice(Base):
+    __tablename__ = "sync_devices"
+
+    id = Column(String, primary_key=True)              # UUID unique par appareil
+    name = Column(String, nullable=False)              # "PC de Tom", "Téléphone"
+    last_sync = Column(Float, nullable=True)           # Dernier sync réussi (unix timestamp)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# Device ID persistant pour ce PC (généré une fois, stocké en DB)
+_device_id_cache = None
+
+def get_device_id(db: Session) -> str:
+    global _device_id_cache
+    if _device_id_cache:
+        return _device_id_cache
+    device = db.query(SyncDevice).filter(SyncDevice.name == "__local__").first()
+    if not device:
+        device = SyncDevice(id=str(_uuid.uuid4()), name="__local__")
+        db.add(device)
+        db.commit()
+    _device_id_cache = device.id
+    return device.id
+
+
+def record_change(db: Session, entity_type: str, entity_id: int, action: str, data: dict = None):
+    """Enregistre une modification dans le journal de sync."""
+    device_id = get_device_id(db)
+    entry = ChangeLog(
+        device_id=device_id,
+        entity_type=entity_type,
+        entity_id=entity_id,
+        action=action,
+        data=_json.dumps(data, default=str) if data else None,
+        timestamp=_time.time()
+    )
+    db.add(entry)
+    db.commit()
+
+
+def get_changes_since(db: Session, since: float, exclude_device: str = None) -> list[dict]:
+    """Récupère les changements depuis un timestamp, en excluant un device."""
+    query = db.query(ChangeLog).filter(ChangeLog.timestamp > since)
+    if exclude_device:
+        query = query.filter(ChangeLog.device_id != exclude_device)
+    entries = query.order_by(ChangeLog.timestamp.asc()).all()
+    return [{
+        "id": e.id, "device_id": e.device_id, "entity_type": e.entity_type,
+        "entity_id": e.entity_id, "action": e.action,
+        "data": _json.loads(e.data) if e.data else None, "timestamp": e.timestamp
+    } for e in entries]
+
+
+def cleanup_changelog(db: Session):
+    """Supprime les entrées du journal déjà synchronisées par tous les appareils."""
+    devices = db.query(SyncDevice).filter(SyncDevice.name != "__local__").all()
+    if not devices:
+        return 0  # Pas d'appareils distants, on garde tout
+    min_sync = min(d.last_sync for d in devices if d.last_sync is not None)
+    if min_sync is None:
+        return 0
+    count = db.query(ChangeLog).filter(ChangeLog.timestamp <= min_sync).delete()
+    db.commit()
+    return count
+
+
+def track_to_dict(track: "Track") -> dict:
+    """Sérialise un Track en dict pour le changelog."""
+    return {
+        "id": track.id, "title": track.title, "artist": track.artist,
+        "file_path": track.file_path, "youtube_url": track.youtube_url,
+        "added_at": str(track.added_at), "play_count": track.play_count or 0,
+        "volume_coeff": track.volume_coeff or 1.0,
+        "start_time": track.start_time, "end_time": track.end_time,
+        "cover_path": track.cover_path, "cover_zoom": track.cover_zoom or 1.0,
+        "cover_offset_x": track.cover_offset_x or 0.0, "cover_offset_y": track.cover_offset_y or 0.0,
+    }
+
+
+def playlist_to_dict(playlist: "Playlist") -> dict:
+    """Sérialise une Playlist en dict pour le changelog."""
+    return {
+        "id": playlist.id, "name": playlist.name, "cover_path": playlist.cover_path,
+        "cover_zoom": playlist.cover_zoom or 1.0,
+        "cover_offset_x": playlist.cover_offset_x or 0.0, "cover_offset_y": playlist.cover_offset_y or 0.0,
+        "is_default": playlist.is_default, "position": playlist.position,
+        "created_at": str(playlist.created_at),
+    }
 
 
 def init_db():

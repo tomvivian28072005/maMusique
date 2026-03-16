@@ -36,6 +36,8 @@ from database import (
     init_db, get_db, add_track, get_tracks, delete_track, Track,
     Playlist, PlaylistTrack, get_playlists, create_playlist, update_playlist, delete_playlist,
     add_track_to_playlist, remove_track_from_playlist, get_playlist_tracks,
+    record_change, track_to_dict, playlist_to_dict,
+    get_changes_since, get_device_id, cleanup_changelog, SyncDevice, ChangeLog,
 )
 
 # Répertoire de base (compatible PyInstaller)
@@ -124,7 +126,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-APP_VERSION = "0.1.12"
+APP_VERSION = "0.1.13"
 
 app = FastAPI(title="Clom", version=APP_VERSION, lifespan=lifespan)
 
@@ -341,6 +343,7 @@ def download_audio(url: str, db: Session) -> dict:
     rel_path = "/downloads/" + Path(filepath).name
     track = add_track(db, title=final_title, artist=final_artist,
                       file_path=rel_path, youtube_url=url)
+    record_change(db, "track", track.id, "create", track_to_dict(track))
 
     active_downloads[url] = {"status": "done", "track_id": track.id, "_ts": time.time()}
     return {"track_id": track.id, "title": final_title, "artist": final_artist}
@@ -359,6 +362,36 @@ async def serve_index():
 @app.get("/api/version")
 async def api_version():
     return {"version": APP_VERSION}
+
+
+@app.get("/api/network-info")
+async def api_network_info():
+    """Retourne l'IP locale et un QR code base64 pour l'accès mobile."""
+    import socket, io, base64
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        local_ip = s.getsockname()[0]
+        s.close()
+    except Exception:
+        local_ip = "127.0.0.1"
+
+    url = f"http://{local_ip}:9000"
+    qr_b64 = None
+    try:
+        import qrcode
+        from qrcode.image.pil import PilImage
+        qr = qrcode.QRCode(version=1, box_size=8, border=2)
+        qr.add_data(url)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="white", back_color="#050508", image_factory=PilImage)
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        qr_b64 = base64.b64encode(buf.getvalue()).decode()
+    except Exception:
+        pass
+
+    return {"local_ip": local_ip, "url": url, "qr_base64": qr_b64}
 
 
 _shutdown_timer = None
@@ -563,7 +596,9 @@ def replace_track_worker(track_id: int, url: str):
         inject_metadata(str(final_path_abs), track.title, track.artist)
         
         db.commit()
-        
+        db.refresh(track)
+        record_change(db, "track", track.id, "update", track_to_dict(track))
+
         # Try to delete the old file AFTER DB commit
         if old_file_abs.exists() and old_file_abs != final_path_abs:
             try:
@@ -729,6 +764,7 @@ async def api_delete_track(track_id: int, db: Session = Depends(get_db)):
     except OSError as e:
         logger.warning("Impossible de supprimer le fichier %s: %s", track.file_path, e)
 
+    record_change(db, "track", track_id, "delete")
     delete_track(db, track_id)
     return {"message": "Track deleted."}
 
@@ -782,6 +818,8 @@ async def api_rename_track(track_id: int, req: RenameRequest, background_tasks: 
         logger.warning("Échec mise à jour métadonnées pour track %d: %s", track_id, e)
 
     db.commit()
+    db.refresh(track)
+    record_change(db, "track", track.id, "update", track_to_dict(track))
     return {"message": "Track updated.", "title": track.title, "artist": track.artist,
             "volume_coeff": track.volume_coeff, "start_time": track.start_time, "end_time": track.end_time,
             "cover_zoom": track.cover_zoom, "cover_offset_x": track.cover_offset_x, "cover_offset_y": track.cover_offset_y}
@@ -808,6 +846,8 @@ async def api_upload_track_cover(track_id: int, file: UploadFile = File(...), db
     cover_url = f"/covers/{cover_name}?t={int(time.time())}"
     track.cover_path = cover_url
     db.commit()
+    db.refresh(track)
+    record_change(db, "track", track.id, "update", track_to_dict(track))
     return {"cover_path": cover_url}
 
 
@@ -834,12 +874,16 @@ async def api_toggle_favorite(track_id: int, db: Session = Depends(get_db)):
         PlaylistTrack.track_id == track_id
     ).first()
     if existing:
+        record_change(db, "playlist_track", existing.id, "delete", {"playlist_id": fav_playlist.id, "track_id": track_id})
         db.delete(existing)
         db.commit()
         return {"favorite": False}
     else:
-        db.add(PlaylistTrack(playlist_id=fav_playlist.id, track_id=track_id))
+        entry = PlaylistTrack(playlist_id=fav_playlist.id, track_id=track_id)
+        db.add(entry)
         db.commit()
+        db.refresh(entry)
+        record_change(db, "playlist_track", entry.id, "create", {"playlist_id": fav_playlist.id, "track_id": track_id})
         return {"favorite": True}
 
 
@@ -886,6 +930,10 @@ async def api_reorder_playlists(req: PlaylistReorderRequest, db: Session = Depen
         if pl:
             pl.position = i
     db.commit()
+    for pid in req.playlist_ids:
+        pl = db.query(Playlist).filter(Playlist.id == pid).first()
+        if pl:
+            record_change(db, "playlist", pl.id, "update", playlist_to_dict(pl))
     return {"message": "OK"}
 
 
@@ -895,6 +943,7 @@ async def api_create_playlist(req: PlaylistCreateRequest, db: Session = Depends(
     if not name:
         raise HTTPException(status_code=400, detail="Le nom ne peut pas être vide.")
     playlist = create_playlist(db, name)
+    record_change(db, "playlist", playlist.id, "create", playlist_to_dict(playlist))
     return {"id": playlist.id, "name": playlist.name}
 
 
@@ -920,6 +969,7 @@ async def api_update_playlist(playlist_id: int, req: PlaylistUpdateRequest, db: 
                                    cover_offset_y=req.cover_offset_y)
     if not playlist:
         raise HTTPException(status_code=404, detail="Playlist introuvable.")
+    record_change(db, "playlist", playlist.id, "update", playlist_to_dict(playlist))
     return {"id": playlist.id, "name": playlist.name, "cover_path": playlist.cover_path,
             "cover_zoom": playlist.cover_zoom, "cover_offset_x": playlist.cover_offset_x,
             "cover_offset_y": playlist.cover_offset_y}
@@ -945,11 +995,14 @@ async def api_upload_playlist_cover(playlist_id: int, file: UploadFile = File(..
         f.write(content)
     cover_url = f"/covers/{cover_name}?t={int(time.time())}"
     update_playlist(db, playlist_id, cover_path=cover_url)
+    playlist = db.query(Playlist).filter(Playlist.id == playlist_id).first()
+    record_change(db, "playlist", playlist_id, "update", playlist_to_dict(playlist))
     return {"cover_path": cover_url}
 
 
 @app.delete("/api/playlists/{playlist_id}")
 async def api_delete_playlist(playlist_id: int, db: Session = Depends(get_db)):
+    record_change(db, "playlist", playlist_id, "delete")
     success = delete_playlist(db, playlist_id)
     if not success:
         raise HTTPException(status_code=400, detail="Impossible de supprimer cette playlist.")
@@ -992,15 +1045,18 @@ async def api_add_track_to_playlist(playlist_id: int, req: PlaylistAddTrackReque
     track = db.query(Track).filter(Track.id == req.track_id).first()
     if not track:
         raise HTTPException(status_code=404, detail="Morceau introuvable.")
-    add_track_to_playlist(db, playlist_id, req.track_id)
+    entry = add_track_to_playlist(db, playlist_id, req.track_id)
+    record_change(db, "playlist_track", entry.id, "create", {"playlist_id": playlist_id, "track_id": req.track_id})
     return {"message": "Morceau ajouté à la playlist."}
 
 
 @app.delete("/api/playlists/{playlist_id}/tracks/{track_id}")
 async def api_remove_track_from_playlist(playlist_id: int, track_id: int, db: Session = Depends(get_db)):
-    success = remove_track_from_playlist(db, playlist_id, track_id)
-    if not success:
+    entry = db.query(PlaylistTrack).filter(PlaylistTrack.playlist_id == playlist_id, PlaylistTrack.track_id == track_id).first()
+    if not entry:
         raise HTTPException(status_code=404, detail="Morceau non trouvé dans la playlist.")
+    record_change(db, "playlist_track", entry.id, "delete", {"playlist_id": playlist_id, "track_id": track_id})
+    remove_track_from_playlist(db, playlist_id, track_id)
     return {"message": "Morceau retiré de la playlist."}
 
 
@@ -1071,6 +1127,178 @@ async def api_export_playlist(playlist_id: int, db: Session = Depends(get_db)):
     except Exception as e:
         os.unlink(tmp.name)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Sync ─────────────────────────────────────────────────────────────────────
+
+
+class SyncApplyRequest(BaseModel):
+    device_id: str
+    device_name: str
+    changes: list[dict]
+
+
+@app.get("/api/sync/changes")
+async def api_sync_changes(since: float = 0, device_id: Optional[str] = None, db: Session = Depends(get_db)):
+    """Retourne les changements depuis un timestamp, en excluant un device."""
+    changes = get_changes_since(db, since, exclude_device=device_id)
+    local_device_id = get_device_id(db)
+    return {"device_id": local_device_id, "changes": changes}
+
+
+@app.post("/api/sync/apply")
+async def api_sync_apply(req: SyncApplyRequest, db: Session = Depends(get_db)):
+    """Applique les changements reçus d'un autre appareil."""
+    # Enregistrer/mettre à jour le device distant
+    remote = db.query(SyncDevice).filter(SyncDevice.id == req.device_id).first()
+    if not remote:
+        remote = SyncDevice(id=req.device_id, name=req.device_name)
+        db.add(remote)
+        db.commit()
+    elif remote.name != req.device_name:
+        remote.name = req.device_name
+        db.commit()
+
+    applied = 0
+    errors = []
+
+    for change in req.changes:
+        try:
+            entity_type = change["entity_type"]
+            entity_id = change["entity_id"]
+            action = change["action"]
+            data = change.get("data")
+
+            if entity_type == "track":
+                if action == "create" and data:
+                    existing = db.query(Track).filter(Track.id == entity_id).first()
+                    if not existing:
+                        track = Track(
+                            id=entity_id, title=data["title"], artist=data["artist"],
+                            file_path=data["file_path"], youtube_url=data.get("youtube_url"),
+                            play_count=data.get("play_count", 0),
+                            volume_coeff=data.get("volume_coeff", 1.0),
+                            start_time=data.get("start_time"), end_time=data.get("end_time"),
+                            cover_path=data.get("cover_path"),
+                            cover_zoom=data.get("cover_zoom", 1.0),
+                            cover_offset_x=data.get("cover_offset_x", 0.0),
+                            cover_offset_y=data.get("cover_offset_y", 0.0),
+                        )
+                        db.add(track)
+                        db.commit()
+                        applied += 1
+                elif action == "update" and data:
+                    track = db.query(Track).filter(Track.id == entity_id).first()
+                    if track:
+                        for key in ("title", "artist", "file_path", "youtube_url", "play_count",
+                                    "volume_coeff", "start_time", "end_time", "cover_path",
+                                    "cover_zoom", "cover_offset_x", "cover_offset_y"):
+                            if key in data:
+                                setattr(track, key, data[key])
+                        db.commit()
+                        applied += 1
+                elif action == "delete":
+                    track = db.query(Track).filter(Track.id == entity_id).first()
+                    if track:
+                        db.delete(track)
+                        db.commit()
+                        applied += 1
+
+            elif entity_type == "playlist":
+                if action == "create" and data:
+                    existing = db.query(Playlist).filter(Playlist.id == entity_id).first()
+                    if not existing:
+                        pl = Playlist(
+                            id=entity_id, name=data["name"],
+                            cover_path=data.get("cover_path"),
+                            cover_zoom=data.get("cover_zoom", 1.0),
+                            cover_offset_x=data.get("cover_offset_x", 0.0),
+                            cover_offset_y=data.get("cover_offset_y", 0.0),
+                            is_default=data.get("is_default", 0),
+                            position=data.get("position", 999),
+                        )
+                        db.add(pl)
+                        db.commit()
+                        applied += 1
+                elif action == "update" and data:
+                    pl = db.query(Playlist).filter(Playlist.id == entity_id).first()
+                    if pl:
+                        for key in ("name", "cover_path", "cover_zoom", "cover_offset_x",
+                                    "cover_offset_y", "position"):
+                            if key in data:
+                                setattr(pl, key, data[key])
+                        db.commit()
+                        applied += 1
+                elif action == "delete":
+                    pl = db.query(Playlist).filter(Playlist.id == entity_id).first()
+                    if pl and not (pl.is_default and pl.name == "Coup de cœur"):
+                        db.delete(pl)
+                        db.commit()
+                        applied += 1
+
+            elif entity_type == "playlist_track":
+                if action == "create" and data:
+                    pid, tid = data["playlist_id"], data["track_id"]
+                    existing = db.query(PlaylistTrack).filter(
+                        PlaylistTrack.playlist_id == pid, PlaylistTrack.track_id == tid
+                    ).first()
+                    if not existing:
+                        db.add(PlaylistTrack(playlist_id=pid, track_id=tid))
+                        db.commit()
+                        applied += 1
+                elif action == "delete" and data:
+                    pid, tid = data["playlist_id"], data["track_id"]
+                    entry = db.query(PlaylistTrack).filter(
+                        PlaylistTrack.playlist_id == pid, PlaylistTrack.track_id == tid
+                    ).first()
+                    if entry:
+                        db.delete(entry)
+                        db.commit()
+                        applied += 1
+
+        except Exception as e:
+            errors.append({"change": change, "error": str(e)})
+
+    return {"applied": applied, "errors": errors}
+
+
+@app.post("/api/sync/complete")
+async def api_sync_complete(device_id: str, db: Session = Depends(get_db)):
+    """Marque la sync comme terminée pour un device. Nettoie le journal."""
+    device = db.query(SyncDevice).filter(SyncDevice.id == device_id).first()
+    if device:
+        device.last_sync = time.time()
+        db.commit()
+    cleaned = cleanup_changelog(db)
+    return {"cleaned": cleaned}
+
+
+@app.get("/api/sync/manifest")
+async def api_sync_manifest(db: Session = Depends(get_db)):
+    """Retourne un résumé de la bibliothèque pour comparaison rapide."""
+    tracks = db.query(Track).all()
+    playlists = get_playlists(db)
+    return {
+        "device_id": get_device_id(db),
+        "tracks": [track_to_dict(t) for t in tracks],
+        "playlists": [playlist_to_dict(p) for p in playlists],
+        "playlist_tracks": [
+            {"playlist_id": pt.playlist_id, "track_id": pt.track_id}
+            for pt in db.query(PlaylistTrack).all()
+        ],
+    }
+
+
+@app.get("/api/sync/tracks/{track_id}/file")
+async def api_sync_track_file(track_id: int, db: Session = Depends(get_db)):
+    """Envoie le fichier audio d'un morceau pour transfert LAN."""
+    track = db.query(Track).filter(Track.id == track_id).first()
+    if not track:
+        raise HTTPException(status_code=404, detail="Track not found.")
+    file_abs = Path(track.file_path.lstrip("/"))
+    if not file_abs.exists():
+        raise HTTPException(status_code=404, detail="Fichier audio introuvable.")
+    return FileResponse(str(file_abs), media_type="audio/mpeg", filename=file_abs.name)
 
 
 # ── CSV Import (Deezer, Spotify, etc.) ───────────────────────────────────────
@@ -1168,6 +1396,7 @@ def import_worker(rows: list[dict]):
             playlist_cache[name] = existing.id
             return existing.id
         pl = create_playlist(db, name)
+        record_change(db, "playlist", pl.id, "create", playlist_to_dict(pl))
         playlist_cache[name] = pl.id
         return pl.id
 
@@ -1254,6 +1483,7 @@ def import_worker(rows: list[dict]):
                 else:
                     track = add_track(db, title=title, artist=artist,
                                       file_path=rel_path, youtube_url=video_url)
+                    record_change(db, "track", track.id, "create", track_to_dict(track))
                     track_id = track.id
 
                 import_status["log"].append(f"{log_msg} → OK")
@@ -1269,7 +1499,9 @@ def import_worker(rows: list[dict]):
                         pl_id = get_or_create_playlist(playlist_name)
                 else:
                     pl_id = get_or_create_playlist(playlist_name)
-                add_track_to_playlist(db, pl_id, track_id)
+                pt_entry = add_track_to_playlist(db, pl_id, track_id)
+                if pt_entry:
+                    record_change(db, "playlist_track", pt_entry.id, "create", {"playlist_id": pl_id, "track_id": track_id})
 
             consecutive_failures = 0
 
@@ -1392,7 +1624,8 @@ async def api_import_folder_audio(files: list[UploadFile] = File(...), db: Sessi
             final_title = (tag_title or fallback_title or "Titre inconnu").strip()
             final_artist = (tag_artist or fallback_artist or "Unknown").strip()
 
-            add_track(db, title=final_title, artist=final_artist, file_path=rel_path, youtube_url=None)
+            track = add_track(db, title=final_title, artist=final_artist, file_path=rel_path, youtube_url=None)
+            record_change(db, "track", track.id, "create", track_to_dict(track))
             added += 1
         except Exception as e:
             logger.warning("Échec import fichier %s: %s", uploaded.filename, e)
