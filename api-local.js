@@ -73,13 +73,16 @@ async function handleLocalApi(path, options = {}) {
   try {
     // ── GET /api/version ──
     if (method === 'GET' && pathname === '/api/version') {
-      return localResponse({ version: 'mobile' });
+      return localResponse({ version: MOBILE_APP_VERSION });
     }
 
     // ── GET /api/tracks ──
     if (method === 'GET' && pathname === '/api/tracks') {
       const tracks = await localGetTracks(params.get('search'), params.get('sort_by') || 'added_at');
-      const resolved = await Promise.all(tracks.map(resolveTrackUrls));
+      const resolved = [];
+      for (const t of tracks) {
+        try { resolved.push(await resolveTrackUrls(t)); } catch(e) { resolved.push(t); }
+      }
       return localResponse(resolved);
     }
 
@@ -146,7 +149,10 @@ async function handleLocalApi(path, options = {}) {
     // ── GET /api/playlists ──
     if (method === 'GET' && pathname === '/api/playlists') {
       const playlists = await localGetPlaylists();
-      const resolved = await Promise.all(playlists.map(resolvePlaylistUrls));
+      const resolved = [];
+      for (const p of playlists) {
+        try { resolved.push(await resolvePlaylistUrls(p)); } catch(e) { resolved.push(p); }
+      }
       return localResponse(resolved);
     }
 
@@ -195,7 +201,10 @@ async function handleLocalApi(path, options = {}) {
     const plTracksMatch = pathname.match(/^\/api\/playlists\/(\d+)\/tracks$/);
     if (method === 'GET' && plTracksMatch) {
       const tracks = await localGetPlaylistTracks(parseInt(plTracksMatch[1]));
-      const resolved = await Promise.all(tracks.map(resolveTrackUrls));
+      const resolved = [];
+      for (const t of tracks) {
+        try { resolved.push(await resolveTrackUrls(t)); } catch(e) { resolved.push(t); }
+      }
       return localResponse(resolved);
     }
 
@@ -218,6 +227,20 @@ async function handleLocalApi(path, options = {}) {
       return localResponse(await localGetPlaylistDuration(parseInt(durationMatch[1])));
     }
 
+    // ── GET /api/sync/manifest ──
+    if (method === 'GET' && pathname === '/api/sync/manifest') {
+      return localResponse(await getLocalManifest());
+    }
+
+    // ── GET /api/sync/changes ──
+    if (method === 'GET' && pathname === '/api/sync/changes') {
+      const since = parseFloat(params.get('since') || '0');
+      const excludeDevice = params.get('device_id');
+      let changes = await getLocalChanges(since);
+      if (excludeDevice) changes = changes.filter(c => c.device_id !== excludeDevice);
+      return localResponse({ device_id: _deviceId, changes });
+    }
+
     // ── Download / Import / Search (non supporté offline) ──
     if (pathname.startsWith('/api/download') || pathname.startsWith('/api/search-download') ||
         pathname.startsWith('/api/import')) {
@@ -238,7 +261,7 @@ async function handleLocalApi(path, options = {}) {
     return localResponse({ detail: 'Not implemented locally' }, 501);
 
   } catch (err) {
-    console.error('[Clom] Local API error:', method, pathname, err);
-    return localResponse({ detail: err.message }, 500);
+    console.error('[Clom] Local API error:', method, pathname, err, err.stack);
+    return localResponse({ detail: err.message, _debug_path: pathname, _debug_stack: String(err.stack || '') }, 500);
   }
 }

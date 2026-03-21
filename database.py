@@ -32,6 +32,15 @@ class Track(Base):
     cover_zoom = Column(Float, default=1.0)     # zoom level for cover
     cover_offset_x = Column(Float, default=0.0) # horizontal offset (-1 to 1)
     cover_offset_y = Column(Float, default=0.0) # vertical offset (-1 to 1)
+    stereo_balance = Column(Float, default=0.0) # -1.0 (full left) to 1.0 (full right)
+    # MusicBrainz metadata
+    mbid = Column(String, nullable=True)           # MusicBrainz recording ID
+    mbid_release = Column(String, nullable=True)   # MusicBrainz release ID (for covers)
+    album = Column(String, nullable=True)          # Album name
+    duration = Column(Float, nullable=True)        # Duration in seconds
+    # Download status: 'downloaded', 'pending', 'downloading', 'known'
+    download_status = Column(String, default="downloaded")
+    removed_at = Column(Float, nullable=True)      # timestamp when removed from all playlists
 
 
 class Playlist(Base):
@@ -78,6 +87,18 @@ class ChangeLog(Base):
     action = Column(String, nullable=False)            # "create", "update", "delete"
     data = Column(String, nullable=True)               # JSON snapshot (pour create/update)
     timestamp = Column(Float, nullable=False)          # Unix timestamp précis
+
+
+class ListenHistory(Base):
+    __tablename__ = "listen_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    track_id = Column(Integer, ForeignKey("tracks.id", ondelete="CASCADE"), nullable=False)
+    listened_at = Column(DateTime, default=datetime.utcnow)
+    duration_seconds = Column(Float, default=0)
+    device_id = Column(String, nullable=True)  # UUID de l'appareil source
+
+    track = relationship("Track")
 
 
 class SyncDevice(Base):
@@ -156,6 +177,19 @@ def track_to_dict(track: "Track") -> dict:
         "start_time": track.start_time, "end_time": track.end_time,
         "cover_path": track.cover_path, "cover_zoom": track.cover_zoom or 1.0,
         "cover_offset_x": track.cover_offset_x or 0.0, "cover_offset_y": track.cover_offset_y or 0.0,
+        "stereo_balance": track.stereo_balance or 0.0,
+        "mbid": track.mbid, "mbid_release": track.mbid_release,
+        "album": track.album, "duration": track.duration,
+        "download_status": track.download_status or "downloaded",
+        "removed_at": track.removed_at,
+    }
+
+
+def listen_history_to_dict(lh: "ListenHistory") -> dict:
+    return {
+        "id": lh.id, "track_id": lh.track_id,
+        "listened_at": str(lh.listened_at), "duration_seconds": lh.duration_seconds,
+        "device_id": lh.device_id,
     }
 
 
@@ -183,6 +217,13 @@ def init_db():
             "ALTER TABLE tracks ADD COLUMN cover_zoom REAL DEFAULT 1.0",
             "ALTER TABLE tracks ADD COLUMN cover_offset_x REAL DEFAULT 0.0",
             "ALTER TABLE tracks ADD COLUMN cover_offset_y REAL DEFAULT 0.0",
+            "ALTER TABLE tracks ADD COLUMN stereo_balance REAL DEFAULT 0.0",
+            "ALTER TABLE tracks ADD COLUMN mbid TEXT",
+            "ALTER TABLE tracks ADD COLUMN mbid_release TEXT",
+            "ALTER TABLE tracks ADD COLUMN album TEXT",
+            "ALTER TABLE tracks ADD COLUMN duration REAL",
+            "ALTER TABLE tracks ADD COLUMN download_status TEXT DEFAULT 'downloaded'",
+            "ALTER TABLE tracks ADD COLUMN removed_at REAL",
             "ALTER TABLE playlists ADD COLUMN position INTEGER DEFAULT 999",
             "ALTER TABLE playlists ADD COLUMN cover_zoom REAL DEFAULT 1.0",
             "ALTER TABLE playlists ADD COLUMN cover_offset_x REAL DEFAULT 0.0",
@@ -193,6 +234,15 @@ def init_db():
                 conn.commit()
             except Exception:
                 pass
+    # Listen history migration
+    for sql in [
+        "ALTER TABLE listen_history ADD COLUMN device_id TEXT",
+    ]:
+        try:
+            conn.execute(text(sql))
+            conn.commit()
+        except Exception:
+            pass
     # Create default playlists if they don't exist
     db = SessionLocal()
     try:
@@ -362,5 +412,6 @@ def get_playlist_tracks(db: Session, playlist_id: int) -> list[dict]:
                 "cover_zoom": e.track.cover_zoom if e.track.cover_zoom is not None else 1.0,
                 "cover_offset_x": e.track.cover_offset_x if e.track.cover_offset_x is not None else 0.0,
                 "cover_offset_y": e.track.cover_offset_y if e.track.cover_offset_y is not None else 0.0,
+                "stereo_balance": e.track.stereo_balance if e.track.stereo_balance is not None else 0.0,
             })
     return result

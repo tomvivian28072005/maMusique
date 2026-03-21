@@ -3,6 +3,7 @@ import re
 import csv
 import json
 import logging
+import asyncio
 import subprocess
 import threading
 import time
@@ -21,7 +22,7 @@ _file_h.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"
 logger.addHandler(_console_h)
 logger.addHandler(_file_h)
 
-from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, UploadFile, File
+from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, UploadFile, File, Request
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -32,12 +33,16 @@ from sqlalchemy.orm import Session
 from mutagen.mp3 import MP3
 from mutagen.id3 import ID3, TIT2, TPE1
 
+import musicbrainzngs
+musicbrainzngs.set_useragent("Clom", "0.1", "https://github.com/tomvivian28072005/maMusique")
+
 from database import (
     init_db, get_db, add_track, get_tracks, delete_track, Track,
     Playlist, PlaylistTrack, get_playlists, create_playlist, update_playlist, delete_playlist,
     add_track_to_playlist, remove_track_from_playlist, get_playlist_tracks,
-    record_change, track_to_dict, playlist_to_dict,
+    record_change, track_to_dict, playlist_to_dict, listen_history_to_dict,
     get_changes_since, get_device_id, cleanup_changelog, SyncDevice, ChangeLog,
+    ListenHistory, SessionLocal,
 )
 
 # Répertoire de base (compatible PyInstaller)
@@ -120,10 +125,48 @@ def _cleanup_status_dicts():
 threading.Thread(target=_cleanup_status_dicts, daemon=True).start()
 
 
+async def cleanup_orphan_tracks():
+    """Supprime les fichiers des morceaux retirés de toutes les playlists depuis > 3 jours."""
+    CLEANUP_DELAY = 3 * 24 * 3600  # 3 jours
+    while True:
+        await asyncio.sleep(3600)  # Vérifier toutes les heures
+        try:
+            db = SessionLocal()
+            cutoff = time.time() - CLEANUP_DELAY
+            orphans = db.query(Track).filter(
+                Track.removed_at != None,
+                Track.removed_at < cutoff,
+            ).all()
+            for track in orphans:
+                # Supprimer le fichier audio
+                if track.file_path:
+                    fpath = str(_BASE / track.file_path.lstrip("/"))
+                    if os.path.exists(fpath):
+                        os.remove(fpath)
+                        logger.info(f"Nettoyage: supprimé {fpath}")
+                # Supprimer la cover si elle existe
+                if track.cover_path:
+                    cpath = str(_BASE / track.cover_path.lstrip("/"))
+                    if os.path.exists(cpath):
+                        os.remove(cpath)
+                # Garder l'entrée en DB (métadonnées) mais marquer comme non-téléchargé
+                track.download_status = "known"
+                track.file_path = ""
+            if orphans:
+                db.commit()
+                logger.info(f"Nettoyage: {len(orphans)} morceau(x) nettoyé(s)")
+            db.close()
+        except Exception as e:
+            logger.warning(f"Erreur nettoyage: {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    # Lancer le job de nettoyage en arrière-plan
+    cleanup_task = asyncio.create_task(cleanup_orphan_tracks())
     yield
+    cleanup_task.cancel()
 
 
 APP_VERSION = "0.1.13"
@@ -164,6 +207,7 @@ class RenameRequest(BaseModel):
     cover_zoom: Optional[float] = None
     cover_offset_x: Optional[float] = None
     cover_offset_y: Optional[float] = None
+    stereo_balance: Optional[float] = None
     clear_cover: bool = False
 
 
@@ -198,6 +242,12 @@ class TrackResponse(BaseModel):
     cover_zoom: float = 1.0
     cover_offset_x: float = 0.0
     cover_offset_y: float = 0.0
+    stereo_balance: float = 0.0
+    download_status: str = "downloaded"
+    album: Optional[str] = None
+    mbid: Optional[str] = None
+    mbid_release: Optional[str] = None
+    duration: Optional[float] = None
 
     class Config:
         from_attributes = True
@@ -219,6 +269,84 @@ def extract_metadata(filepath: str) -> tuple[str, str]:
     except Exception as e:
         logger.debug("Impossible de lire les tags ID3 de %s: %s", filepath, e)
         return None, None
+
+
+def fetch_and_save_cover(db: Session, track_id: int, title: str, artist: str):
+    """Cherche une pochette HD sur MusicBrainz/Cover Art Archive et la sauvegarde."""
+    import urllib.request
+    try:
+        # Rechercher sur MusicBrainz
+        query = f"{title} AND artist:{artist}" if artist else title
+        result = musicbrainzngs.search_recordings(query=query, limit=5)
+        recordings = result.get("recording-list", [])
+        if not recordings:
+            logger.info(f"MusicBrainz: aucun résultat pour '{title}' - '{artist}'")
+            return None
+
+        import re
+        compilation_re = re.compile(r"best of|greatest|compilation|award|hits|antholog", re.IGNORECASE)
+        title_lower = title.lower().strip()
+
+        # Trouver un release avec une cover, en préférant single/album du morceau
+        for rec in recordings:
+            releases = rec.get("release-list", [])
+            # Trier : exact match titre > contient titre > le reste ; compilations en dernier
+            def _score(r):
+                rt = (r.get("title") or "").lower()
+                s = 0
+                if rt == title_lower: s += 3
+                elif title_lower in rt or rt in title_lower: s += 2
+                if compilation_re.search(rt): s -= 5
+                return s
+            releases = sorted(releases, key=_score, reverse=True)
+
+            for release in releases:
+                mbid = release.get("id", "")
+                if not mbid:
+                    continue
+                try:
+                    img_data = musicbrainzngs.get_image_list(mbid)
+                    images = img_data.get("images", [])
+                    if not images:
+                        continue
+                    front = next((img for img in images if img.get("front")), images[0])
+                    cover_url = front.get("thumbnails", {}).get("1200",
+                                front.get("thumbnails", {}).get("large",
+                                front.get("image", "")))
+                    if not cover_url:
+                        continue
+
+                    # Télécharger l'image
+                    req = urllib.request.Request(cover_url, headers={"User-Agent": "Clom/0.1"})
+                    with urllib.request.urlopen(req, timeout=15) as resp:
+                        img_bytes = resp.read()
+
+                    # Sauvegarder dans covers/
+                    ext = ".jpg"
+                    content_type = resp.headers.get("Content-Type", "")
+                    if "png" in content_type:
+                        ext = ".png"
+                    cover_filename = f"track_{track_id}{ext}"
+                    cover_path = COVERS_DIR / cover_filename
+                    cover_path.write_bytes(img_bytes)
+
+                    # Mettre à jour la DB
+                    rel_cover = f"/covers/{cover_filename}"
+                    track = db.query(Track).filter(Track.id == track_id).first()
+                    if track:
+                        track.cover_path = rel_cover
+                        db.commit()
+                        record_change(db, "track", track.id, "update", track_to_dict(track))
+                    logger.info(f"Cover HD sauvegardée: {rel_cover} (depuis {mbid})")
+                    return rel_cover
+                except Exception as e:
+                    logger.debug(f"Cover Art Archive skip {mbid}: {e}")
+                    continue
+        logger.info(f"MusicBrainz: aucune cover trouvée pour '{title}'")
+        return None
+    except Exception as e:
+        logger.warning(f"fetch_and_save_cover error: {e}")
+        return None
 
 
 def inject_metadata(filepath: str, title: str, artist: str):
@@ -281,6 +409,56 @@ def clean_youtube_url(url: str) -> str:
     return urlunparse(parsed._replace(query=clean_query))
 
 
+def normalize_audio(filepath: str) -> float:
+    """Normalise le volume d'un fichier MP3 via ffmpeg loudnorm (2-pass).
+    Retourne le coefficient de volume calculé (1.0 = pas de changement)."""
+    ffmpeg = os.path.join(FFMPEG_DIR, "ffmpeg.exe")
+    if not os.path.exists(ffmpeg):
+        logger.warning("ffmpeg non trouvé, normalisation ignorée")
+        return 1.0
+    try:
+        # Pass 1 : mesurer le volume
+        measure_cmd = [
+            ffmpeg, "-i", filepath, "-af",
+            "loudnorm=I=-14:TP=-1.5:LRA=11:print_format=json",
+            "-f", "null", "-"
+        ]
+        result = subprocess.run(measure_cmd, capture_output=True, text=True, timeout=60, creationflags=_NO_WINDOW)
+        # Extraire les données JSON de la sortie stderr
+        stderr = result.stderr
+        json_start = stderr.rfind("{")
+        json_end = stderr.rfind("}") + 1
+        if json_start < 0 or json_end <= json_start:
+            logger.warning("Impossible de parser la sortie loudnorm")
+            return 1.0
+        stats = json.loads(stderr[json_start:json_end])
+        input_i = float(stats.get("input_i", -14))
+        # Si le volume est déjà proche de -14 LUFS, pas besoin de normaliser
+        if abs(input_i - (-14)) < 1.5:
+            logger.info(f"Volume OK ({input_i:.1f} LUFS), pas de normalisation nécessaire")
+            return 1.0
+        # Pass 2 : normaliser
+        temp_path = filepath + ".norm.mp3"
+        norm_cmd = [
+            ffmpeg, "-y", "-i", filepath, "-af",
+            f"loudnorm=I=-14:TP=-1.5:LRA=11:measured_I={stats['input_i']}:measured_LRA={stats['input_lra']}:measured_TP={stats['input_tp']}:measured_thresh={stats['input_thresh']}:offset={stats['target_offset']}:linear=true",
+            "-ar", "44100", "-ab", "192k", temp_path
+        ]
+        result2 = subprocess.run(norm_cmd, capture_output=True, text=True, timeout=120, creationflags=_NO_WINDOW)
+        if result2.returncode == 0 and os.path.exists(temp_path):
+            os.replace(temp_path, filepath)
+            logger.info(f"Audio normalisé: {input_i:.1f} → -14 LUFS")
+            return 1.0
+        else:
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+            logger.warning(f"Normalisation échouée (rc={result2.returncode})")
+            return 1.0
+    except Exception as e:
+        logger.warning(f"Erreur normalisation: {e}")
+        return 1.0
+
+
 def download_audio(url: str, db: Session) -> dict:
     """Download audio from YouTube URL using yt-dlp CLI subprocess."""
     url = clean_youtube_url(url)
@@ -340,10 +518,19 @@ def download_audio(url: str, db: Session) -> dict:
     final_artist = tag_artist or info.get("uploader") or uploader
     inject_metadata(filepath, final_title, final_artist)
 
+    # Normaliser le volume (-14 LUFS)
+    normalize_audio(filepath)
+
     rel_path = "/downloads/" + Path(filepath).name
     track = add_track(db, title=final_title, artist=final_artist,
                       file_path=rel_path, youtube_url=url)
     record_change(db, "track", track.id, "create", track_to_dict(track))
+
+    # Chercher une pochette HD automatiquement (MusicBrainz)
+    try:
+        fetch_and_save_cover(db, track.id, final_title, final_artist)
+    except Exception as e:
+        logger.warning(f"Auto cover fetch failed: {e}")
 
     active_downloads[url] = {"status": "done", "track_id": track.id, "_ts": time.time()}
     return {"track_id": track.id, "title": final_title, "artist": final_artist}
@@ -359,9 +546,22 @@ async def serve_index():
     return HTMLResponse(content=html_path.read_text(encoding="utf-8"))
 
 
+@app.get("/manifest.json")
+async def serve_manifest():
+    p = Path("manifest.json")
+    if p.exists():
+        return FileResponse(str(p), media_type="application/manifest+json")
+    raise HTTPException(status_code=404)
+
+
 @app.get("/api/version")
 async def api_version():
-    return {"version": APP_VERSION}
+    import socket
+    try:
+        hostname = socket.gethostname()
+    except Exception:
+        hostname = "PC"
+    return {"version": APP_VERSION, "name": hostname}
 
 
 @app.get("/api/network-info")
@@ -377,10 +577,23 @@ async def api_network_info():
         local_ip = "127.0.0.1"
 
     url = f"http://{local_ip}:9000"
+    deep_link = f"clom://sync/{local_ip}:9000"
     qr_b64 = None
+    qr_deeplink_b64 = None
     try:
         import qrcode
         from qrcode.image.pil import PilImage
+
+        # QR for deep link (opens the Clom app)
+        qr_dl = qrcode.QRCode(version=1, box_size=8, border=2)
+        qr_dl.add_data(deep_link)
+        qr_dl.make(fit=True)
+        img_dl = qr_dl.make_image(fill_color="white", back_color="#050508", image_factory=PilImage)
+        buf_dl = io.BytesIO()
+        img_dl.save(buf_dl, format="PNG")
+        qr_deeplink_b64 = base64.b64encode(buf_dl.getvalue()).decode()
+
+        # QR for web URL (fallback)
         qr = qrcode.QRCode(version=1, box_size=8, border=2)
         qr.add_data(url)
         qr.make(fit=True)
@@ -391,7 +604,49 @@ async def api_network_info():
     except Exception:
         pass
 
-    return {"local_ip": local_ip, "url": url, "qr_base64": qr_b64}
+    return {"local_ip": local_ip, "url": url, "qr_base64": qr_b64, "qr_deeplink_base64": qr_deeplink_b64, "deep_link": deep_link}
+
+
+@app.get("/api/discover")
+async def api_discover_devices():
+    """Scan le réseau local pour trouver d'autres instances Clom."""
+    import socket, asyncio, json
+    from urllib.request import urlopen
+    from urllib.error import URLError
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        local_ip = s.getsockname()[0]
+        s.close()
+    except Exception:
+        return {"devices": [], "local_ip": "127.0.0.1"}
+
+    subnet = ".".join(local_ip.split(".")[:3])
+    devices = []
+    loop = asyncio.get_event_loop()
+
+    def check_host(ip):
+        if ip == local_ip:
+            return None
+        try:
+            resp = urlopen(f"http://{ip}:9000/api/version", timeout=1.2)
+            data = json.loads(resp.read())
+            if "version" in data:
+                name = data.get("name", ip)
+                if not name or name == ip:
+                    try:
+                        name = socket.gethostbyaddr(ip)[0].split(".")[0]
+                    except Exception:
+                        pass
+                return {"ip": ip, "url": f"http://{ip}:9000", "version": data["version"], "name": name}
+        except Exception:
+            return None
+
+    tasks = [loop.run_in_executor(None, check_host, f"{subnet}.{i}") for i in range(1, 255)]
+    results = await asyncio.gather(*tasks)
+    devices = [r for r in results if r is not None]
+
+    return {"devices": devices, "local_ip": local_ip}
 
 
 _shutdown_timer = None
@@ -745,6 +1000,7 @@ async def api_get_tracks(
             cover_zoom=t.cover_zoom if t.cover_zoom is not None else 1.0,
             cover_offset_x=t.cover_offset_x if t.cover_offset_x is not None else 0.0,
             cover_offset_y=t.cover_offset_y if t.cover_offset_y is not None else 0.0,
+            stereo_balance=t.stereo_balance if t.stereo_balance is not None else 0.0,
         )
         for t in tracks
     ]
@@ -788,6 +1044,8 @@ async def api_rename_track(track_id: int, req: RenameRequest, background_tasks: 
 
     if req.volume_coeff is not None:
         track.volume_coeff = max(0.5, min(5.0, req.volume_coeff))
+    if req.stereo_balance is not None:
+        track.stereo_balance = max(-1.0, min(1.0, req.stereo_balance))
     if req.clear_start_time:
         track.start_time = None
     elif req.start_time is not None:
@@ -822,7 +1080,8 @@ async def api_rename_track(track_id: int, req: RenameRequest, background_tasks: 
     record_change(db, "track", track.id, "update", track_to_dict(track))
     return {"message": "Track updated.", "title": track.title, "artist": track.artist,
             "volume_coeff": track.volume_coeff, "start_time": track.start_time, "end_time": track.end_time,
-            "cover_zoom": track.cover_zoom, "cover_offset_x": track.cover_offset_x, "cover_offset_y": track.cover_offset_y}
+            "cover_zoom": track.cover_zoom, "cover_offset_x": track.cover_offset_x, "cover_offset_y": track.cover_offset_y,
+            "stereo_balance": track.stereo_balance}
 
 
 @app.post("/api/tracks/{track_id}/cover")
@@ -1032,6 +1291,7 @@ async def api_get_playlist_tracks(playlist_id: int, db: Session = Depends(get_db
             "cover_zoom": t.get("cover_zoom", 1.0),
             "cover_offset_x": t.get("cover_offset_x", 0.0),
             "cover_offset_y": t.get("cover_offset_y", 0.0),
+            "stereo_balance": t.get("stereo_balance", 0.0),
         }
         for t in tracks
     ]
@@ -1047,6 +1307,10 @@ async def api_add_track_to_playlist(playlist_id: int, req: PlaylistAddTrackReque
         raise HTTPException(status_code=404, detail="Morceau introuvable.")
     entry = add_track_to_playlist(db, playlist_id, req.track_id)
     record_change(db, "playlist_track", entry.id, "create", {"playlist_id": playlist_id, "track_id": req.track_id})
+    # Reset removed_at si le morceau était marqué pour suppression
+    if track.removed_at is not None:
+        track.removed_at = None
+        db.commit()
     return {"message": "Morceau ajouté à la playlist."}
 
 
@@ -1057,6 +1321,13 @@ async def api_remove_track_from_playlist(playlist_id: int, track_id: int, db: Se
         raise HTTPException(status_code=404, detail="Morceau non trouvé dans la playlist.")
     record_change(db, "playlist_track", entry.id, "delete", {"playlist_id": playlist_id, "track_id": track_id})
     remove_track_from_playlist(db, playlist_id, track_id)
+    # Vérifier si le morceau est encore dans au moins une playlist
+    remaining = db.query(PlaylistTrack).filter(PlaylistTrack.track_id == track_id).count()
+    if remaining == 0:
+        track = db.query(Track).filter(Track.id == track_id).first()
+        if track:
+            track.removed_at = time.time()
+            db.commit()
     return {"message": "Morceau retiré de la playlist."}
 
 
@@ -1256,6 +1527,27 @@ async def api_sync_apply(req: SyncApplyRequest, db: Session = Depends(get_db)):
                         db.commit()
                         applied += 1
 
+            elif entity_type == "listen_history":
+                if action == "create" and data:
+                    # Dédup par track_id + listened_at + device_id
+                    listened_at = data.get("listened_at")
+                    src_device = data.get("device_id", change.get("device_id"))
+                    existing = db.query(ListenHistory).filter(
+                        ListenHistory.track_id == data["track_id"],
+                        ListenHistory.listened_at == listened_at,
+                        ListenHistory.device_id == src_device,
+                    ).first()
+                    if not existing:
+                        lh = ListenHistory(
+                            track_id=data["track_id"],
+                            listened_at=listened_at,
+                            duration_seconds=data.get("duration_seconds", 0),
+                            device_id=src_device,
+                        )
+                        db.add(lh)
+                        db.commit()
+                        applied += 1
+
         except Exception as e:
             errors.append({"change": change, "error": str(e)})
 
@@ -1273,6 +1565,349 @@ async def api_sync_complete(device_id: str, db: Session = Depends(get_db)):
     return {"cleaned": cleaned}
 
 
+@app.post("/api/sync/execute")
+async def api_sync_execute(request: Request, db: Session = Depends(get_db)):
+    """Exécute une sync bidirectionnelle PC-to-PC avec un serveur distant."""
+    body = await request.json()
+    remote_url = body.get("url", "").rstrip("/")
+    if not remote_url:
+        raise HTTPException(status_code=400, detail="URL manquante")
+
+    import urllib.request, shutil
+
+    local_device_id = get_device_id(db)
+
+    # 1. Récupérer les devices connus pour last_sync
+    remote_device = db.query(SyncDevice).filter(SyncDevice.name == remote_url).first()
+    last_sync = remote_device.last_sync if remote_device else 0
+
+    # 2. Récupérer les changements du serveur distant
+    try:
+        with urllib.request.urlopen(f"{remote_url}/api/sync/changes?since={last_sync}&device_id={local_device_id}", timeout=10) as r:
+            remote_data = json.loads(r.read())
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Impossible de joindre le serveur : {e}")
+
+    remote_device_id = remote_data["device_id"]
+    remote_changes = remote_data["changes"]
+
+    # 3. Envoyer nos changements locaux au serveur distant
+    local_changes = get_changes_since(db, last_sync, exclude_device=remote_device_id)
+    sent = 0
+    if local_changes:
+        payload = json.dumps({
+            "device_id": local_device_id,
+            "device_name": "PC",
+            "changes": local_changes,
+        }).encode()
+        req_obj = urllib.request.Request(
+            f"{remote_url}/api/sync/apply",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req_obj, timeout=30) as r:
+            result = json.loads(r.read())
+            sent = result.get("applied", 0)
+
+    # 4. Appliquer les changements distants localement
+    received = 0
+    if remote_changes:
+        for change in remote_changes:
+            try:
+                entity_type = change["entity_type"]
+                entity_id = change["entity_id"]
+                action = change["action"]
+                data = change.get("data")
+                if entity_type == "track":
+                    if action == "create" and data:
+                        if not db.query(Track).filter(Track.id == entity_id).first():
+                            track = Track(
+                                id=entity_id, title=data["title"], artist=data["artist"],
+                                file_path=data["file_path"], youtube_url=data.get("youtube_url"),
+                                play_count=data.get("play_count", 0),
+                                volume_coeff=data.get("volume_coeff", 1.0),
+                                start_time=data.get("start_time"), end_time=data.get("end_time"),
+                                cover_path=data.get("cover_path"),
+                                cover_zoom=data.get("cover_zoom", 1.0),
+                                cover_offset_x=data.get("cover_offset_x", 0.0),
+                                cover_offset_y=data.get("cover_offset_y", 0.0),
+                                stereo_balance=data.get("stereo_balance", 0.0),
+                            )
+                            db.add(track)
+                            db.commit()
+                            received += 1
+                    elif action == "update" and data:
+                        track = db.query(Track).filter(Track.id == entity_id).first()
+                        if track:
+                            for key in ("title", "artist", "file_path", "youtube_url", "play_count",
+                                        "volume_coeff", "start_time", "end_time", "cover_path",
+                                        "cover_zoom", "cover_offset_x", "cover_offset_y", "stereo_balance"):
+                                if key in data:
+                                    setattr(track, key, data[key])
+                            db.commit()
+                            received += 1
+                    elif action == "delete":
+                        track = db.query(Track).filter(Track.id == entity_id).first()
+                        if track:
+                            db.delete(track)
+                            db.commit()
+                            received += 1
+                elif entity_type == "playlist":
+                    if action == "create" and data:
+                        if not db.query(Playlist).filter(Playlist.id == entity_id).first():
+                            pl = Playlist(id=entity_id, name=data["name"], cover_path=data.get("cover_path"),
+                                cover_zoom=data.get("cover_zoom", 1.0), cover_offset_x=data.get("cover_offset_x", 0.0),
+                                cover_offset_y=data.get("cover_offset_y", 0.0), is_default=data.get("is_default", 0),
+                                position=data.get("position", 999))
+                            db.add(pl)
+                            db.commit()
+                            received += 1
+                    elif action == "update" and data:
+                        pl = db.query(Playlist).filter(Playlist.id == entity_id).first()
+                        if pl:
+                            for key in ("name", "cover_path", "cover_zoom", "cover_offset_x", "cover_offset_y", "position"):
+                                if key in data:
+                                    setattr(pl, key, data[key])
+                            db.commit()
+                            received += 1
+                    elif action == "delete":
+                        pl = db.query(Playlist).filter(Playlist.id == entity_id).first()
+                        if pl and not (pl.is_default and pl.name == "Coup de cœur"):
+                            db.delete(pl)
+                            db.commit()
+                            received += 1
+                elif entity_type == "playlist_track":
+                    if action == "create" and data:
+                        pid, tid = data["playlist_id"], data["track_id"]
+                        if not db.query(PlaylistTrack).filter(PlaylistTrack.playlist_id == pid, PlaylistTrack.track_id == tid).first():
+                            db.add(PlaylistTrack(playlist_id=pid, track_id=tid))
+                            db.commit()
+                            received += 1
+                    elif action == "delete" and data:
+                        pid, tid = data["playlist_id"], data["track_id"]
+                        entry = db.query(PlaylistTrack).filter(PlaylistTrack.playlist_id == pid, PlaylistTrack.track_id == tid).first()
+                        if entry:
+                            db.delete(entry)
+                            db.commit()
+                            received += 1
+            except Exception as e:
+                logger.warning(f"[Sync] Erreur application changement: {e}")
+
+    # 5. Transférer les fichiers manquants (bidirectionnel)
+    with urllib.request.urlopen(f"{remote_url}/api/sync/manifest", timeout=10) as r:
+        remote_manifest = json.loads(r.read())
+
+    local_tracks = {t.id: t for t in db.query(Track).all()}
+    remote_track_map = {t["id"]: t for t in remote_manifest["tracks"]}
+
+    files_downloaded = 0
+
+    # Fichiers qu'on n'a pas localement mais qui existent sur le distant
+    for rt in remote_manifest["tracks"]:
+        tid = rt["id"]
+        local_t = local_tracks.get(tid)
+        if local_t and local_t.file_path:
+            local_file = Path(local_t.file_path.lstrip("/"))
+            if local_file.exists():
+                continue
+        elif not local_t:
+            continue  # pas de track en DB, on skip (devrait avoir été créé par les changes)
+
+        # Télécharger le fichier
+        try:
+            file_url = f"{remote_url}/api/sync/tracks/{tid}/file"
+            file_name = Path(rt["file_path"]).name if rt.get("file_path") else f"{tid}.mp3"
+            local_path = Path("downloads") / file_name
+            local_path.parent.mkdir(parents=True, exist_ok=True)
+            urllib.request.urlretrieve(file_url, str(local_path))
+            if local_t:
+                local_t.file_path = f"/downloads/{file_name}"
+                db.commit()
+            files_downloaded += 1
+        except Exception as e:
+            logger.warning(f"[Sync] Fichier {tid}: {e}")
+
+    # Télécharger les covers manquantes
+    for rt in remote_manifest["tracks"]:
+        if rt.get("cover_path"):
+            local_t = local_tracks.get(rt["id"])
+            if local_t and local_t.cover_path:
+                cover_file = Path(local_t.cover_path.split("?")[0].lstrip("/"))
+                if cover_file.exists():
+                    continue
+            if local_t:
+                try:
+                    cover_name = rt["cover_path"].split("?")[0].split("/")[-1]
+                    cover_url = f"{remote_url}{rt['cover_path'].split('?')[0]}"
+                    local_cover = Path("covers") / cover_name
+                    local_cover.parent.mkdir(parents=True, exist_ok=True)
+                    urllib.request.urlretrieve(cover_url, str(local_cover))
+                    local_t.cover_path = f"/covers/{cover_name}?t={int(time.time())}"
+                    db.commit()
+                except Exception as e:
+                    logger.warning(f"[Sync] Cover {rt['id']}: {e}")
+
+    # 6. Compléter la sync
+    try:
+        req_obj = urllib.request.Request(
+            f"{remote_url}/api/sync/complete?device_id={local_device_id}",
+            method="POST",
+        )
+        urllib.request.urlopen(req_obj, timeout=10)
+    except Exception:
+        pass
+
+    # Mettre à jour last_sync
+    now = time.time()
+    if remote_device:
+        remote_device.last_sync = now
+    else:
+        remote_device = SyncDevice(id=remote_device_id, name=remote_url, last_sync=now)
+        db.add(remote_device)
+    db.commit()
+    cleanup_changelog(db)
+
+    return {"sent": sent, "received": received, "files_downloaded": files_downloaded}
+
+
+@app.post("/api/sync/preview")
+async def api_sync_preview(request: Request, db: Session = Depends(get_db)):
+    """Compare la bibliothèque locale avec celle d'un appareil distant et retourne un aperçu."""
+    body = await request.json()
+    remote_tracks = body.get("tracks", [])
+    remote_playlists = body.get("playlists", [])
+
+    local_tracks = {t.id: t for t in db.query(Track).all()}
+    local_track_ids = set(local_tracks.keys())
+    remote_track_ids = set(t["id"] for t in remote_tracks)
+
+    to_send = []  # tracks on local but not remote
+    to_receive = []  # tracks on remote but not local
+    to_update = []  # tracks on both but modified
+
+    for tid in local_track_ids - remote_track_ids:
+        t = local_tracks[tid]
+        to_send.append({"id": t.id, "title": t.title, "artist": t.artist})
+
+    for rt in remote_tracks:
+        if rt["id"] not in local_track_ids:
+            to_receive.append({"id": rt["id"], "title": rt["title"], "artist": rt["artist"]})
+
+    return {
+        "to_send": to_send,
+        "to_receive": to_receive,
+        "send_count": len(to_send),
+        "receive_count": len(to_receive),
+        "local_total": len(local_tracks),
+        "remote_total": len(remote_tracks),
+    }
+
+
+# ── Registered devices (in-memory) ──
+_registered_devices = {}  # device_id -> {name, ip, last_seen, device_type}
+
+
+@app.post("/api/devices/register")
+async def api_device_register(request: Request):
+    """Un appareil s'enregistre pour être visible sur le réseau."""
+    body = await request.json()
+    device_id = body.get("device_id", "")
+    if not device_id:
+        raise HTTPException(status_code=400, detail="device_id manquant")
+    _registered_devices[device_id] = {
+        "name": body.get("name", "Appareil"),
+        "ip": request.client.host if request.client else "unknown",
+        "last_seen": time.time(),
+        "device_type": body.get("device_type", "mobile"),
+        "track_count": body.get("track_count", 0),
+    }
+    # Cleanup stale (>5min)
+    now = time.time()
+    for k in list(_registered_devices.keys()):
+        if now - _registered_devices[k]["last_seen"] > 300:
+            del _registered_devices[k]
+    return {"ok": True}
+
+
+@app.get("/api/devices")
+async def api_devices_list():
+    """Liste les appareils enregistrés (actifs)."""
+    now = time.time()
+    active = [
+        {"device_id": k, **v}
+        for k, v in _registered_devices.items()
+        if now - v["last_seen"] < 300
+    ]
+    return {"devices": active}
+
+
+# Pending sync requests (in-memory, cleared on restart)
+_pending_sync_requests = {}  # request_id -> {from_ip, from_name, preview, timestamp, status, target_device_id}
+
+
+@app.post("/api/sync/request")
+async def api_sync_request(request: Request):
+    """Enregistre une demande de sync. target_device_id optionnel pour cibler un appareil."""
+    body = await request.json()
+    import uuid
+    req_id = str(uuid.uuid4())[:8]
+    _pending_sync_requests[req_id] = {
+        "from_ip": request.client.host if request.client else "unknown",
+        "from_name": body.get("name", "Appareil inconnu"),
+        "preview": body.get("preview", {}),
+        "timestamp": time.time(),
+        "status": "pending",  # pending | accepted | rejected
+        "target_device_id": body.get("target_device_id"),
+    }
+    # Cleanup old requests (>5min)
+    now = time.time()
+    for k in list(_pending_sync_requests.keys()):
+        if now - _pending_sync_requests[k]["timestamp"] > 300:
+            del _pending_sync_requests[k]
+    return {"request_id": req_id}
+
+
+@app.get("/api/sync/pending")
+async def api_sync_pending(device_id: str = None):
+    """Retourne les demandes de sync en attente, filtrées par device_id si fourni."""
+    pending = []
+    for k, v in _pending_sync_requests.items():
+        if v["status"] != "pending":
+            continue
+        # Si device_id fourni, ne montrer que les demandes ciblées pour cet appareil
+        if device_id and v.get("target_device_id") and v["target_device_id"] != device_id:
+            continue
+        pending.append({"id": k, **v})
+    return {"requests": pending}
+
+
+@app.post("/api/sync/accept/{request_id}")
+async def api_sync_accept(request_id: str):
+    """Accepte une demande de sync."""
+    if request_id in _pending_sync_requests:
+        _pending_sync_requests[request_id]["status"] = "accepted"
+        return {"status": "accepted"}
+    raise HTTPException(status_code=404, detail="Demande introuvable")
+
+
+@app.post("/api/sync/reject/{request_id}")
+async def api_sync_reject(request_id: str):
+    """Refuse une demande de sync."""
+    if request_id in _pending_sync_requests:
+        _pending_sync_requests[request_id]["status"] = "rejected"
+        return {"status": "rejected"}
+    raise HTTPException(status_code=404, detail="Demande introuvable")
+
+
+@app.get("/api/sync/request/{request_id}/status")
+async def api_sync_request_status(request_id: str):
+    """Vérifie le statut d'une demande de sync."""
+    if request_id in _pending_sync_requests:
+        return {"status": _pending_sync_requests[request_id]["status"]}
+    raise HTTPException(status_code=404, detail="Demande introuvable")
+
+
 @app.get("/api/sync/manifest")
 async def api_sync_manifest(db: Session = Depends(get_db)):
     """Retourne un résumé de la bibliothèque pour comparaison rapide."""
@@ -1286,6 +1921,7 @@ async def api_sync_manifest(db: Session = Depends(get_db)):
             {"playlist_id": pt.playlist_id, "track_id": pt.track_id}
             for pt in db.query(PlaylistTrack).all()
         ],
+        "listen_history": [listen_history_to_dict(lh) for lh in db.query(ListenHistory).all()],
     }
 
 
@@ -1638,3 +2274,122 @@ async def api_import_folder_audio(files: list[UploadFile] = File(...), db: Sessi
         "errors": errors,
         "total": len(files),
     }
+
+
+# ── MusicBrainz search ──────────────────────────────────────
+
+@app.get("/api/search/musicbrainz")
+async def api_search_musicbrainz(q: str, limit: int = 15):
+    """Recherche dans MusicBrainz (titre, artiste, album)."""
+    if len(q) < 2:
+        return {"results": []}
+    try:
+        result = musicbrainzngs.search_recordings(query=q, limit=limit)
+        recordings = result.get("recording-list", [])
+        out = []
+        for rec in recordings:
+            artist = ""
+            if "artist-credit" in rec:
+                parts = rec["artist-credit"]
+                artist = "".join(
+                    p["artist"]["name"] if isinstance(p, dict) and "artist" in p else str(p)
+                    for p in parts
+                )
+            release = ""
+            mbid_release = ""
+            if "release-list" in rec and rec["release-list"]:
+                release = rec["release-list"][0].get("title", "")
+                mbid_release = rec["release-list"][0].get("id", "")
+            out.append({
+                "mbid": rec.get("id", ""),
+                "title": rec.get("title", ""),
+                "artist": artist,
+                "album": release,
+                "mbid_release": mbid_release,
+                "duration": int(rec["length"]) // 1000 if rec.get("length") else None,
+                "score": int(rec.get("ext:score", 0)),
+            })
+        return {"results": out}
+    except Exception as e:
+        logger.warning("MusicBrainz search error: %s", e)
+        return {"results": [], "error": str(e)}
+
+
+# ── YouTube search + audio stream ────────────────────────────
+
+@app.get("/api/search/youtube")
+async def api_search_youtube(q: str, limit: int = 5):
+    """Recherche YouTube via yt-dlp (ytsearch)."""
+    if len(q) < 2:
+        return {"results": []}
+    try:
+        cmd = [YTDLP_BIN, "--dump-json", "--no-download", "--flat-playlist",
+               f"ytsearch{limit}:{q}"]
+        proc = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: subprocess.run(cmd, capture_output=True, text=True,
+                                         timeout=15, creationflags=_NO_WINDOW))
+        results = []
+        for line in proc.stdout.strip().split("\n"):
+            if not line.strip():
+                continue
+            try:
+                data = json.loads(line)
+                results.append({
+                    "id": data.get("id", ""),
+                    "title": data.get("title", ""),
+                    "artist": data.get("channel", data.get("uploader", "")),
+                    "duration": data.get("duration"),
+                    "thumbnail": data.get("thumbnail", ""),
+                    "url": f"https://www.youtube.com/watch?v={data.get('id', '')}",
+                })
+            except json.JSONDecodeError:
+                continue
+        return {"results": results}
+    except Exception as e:
+        logger.warning("YouTube search error: %s", e)
+        return {"results": [], "error": str(e)}
+
+
+@app.get("/api/stream/youtube")
+async def api_stream_youtube(video_id: str):
+    """Extrait l'URL audio directe d'une vidéo YouTube pour pré-écoute."""
+    if not video_id:
+        raise HTTPException(status_code=400, detail="video_id manquant")
+    try:
+        url = f"https://www.youtube.com/watch?v={video_id}"
+        cmd = [YTDLP_BIN, "-f", "bestaudio", "-g", "--no-playlist", url]
+        proc = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: subprocess.run(cmd, capture_output=True, text=True,
+                                         timeout=15, creationflags=_NO_WINDOW))
+        audio_url = proc.stdout.strip()
+        if not audio_url:
+            raise HTTPException(status_code=404, detail="Impossible d'extraire l'audio")
+        return {"audio_url": audio_url, "video_id": video_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.warning("YouTube stream error: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Cover Art (MusicBrainz Cover Art Archive) ────────────────
+
+@app.get("/api/cover/musicbrainz/{release_mbid}")
+async def api_cover_musicbrainz(release_mbid: str):
+    """Récupère l'URL de la pochette HD depuis Cover Art Archive."""
+    try:
+        data = musicbrainzngs.get_image_list(release_mbid)
+        images = data.get("images", [])
+        if not images:
+            return {"cover_url": None}
+        # Prendre la première image front, sinon la première dispo
+        front = next((img for img in images if img.get("front")), images[0])
+        # Retourner l'URL en grande taille (1200px) ou originale
+        thumb_large = front.get("thumbnails", {}).get("1200", front.get("thumbnails", {}).get("large", ""))
+        return {
+            "cover_url": thumb_large or front.get("image", ""),
+            "thumbnails": front.get("thumbnails", {}),
+        }
+    except Exception as e:
+        logger.warning("Cover Art Archive error for %s: %s", release_mbid, e)
+        return {"cover_url": None}

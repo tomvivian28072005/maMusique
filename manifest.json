@@ -1,0 +1,17 @@
+{
+  "name": "Clom",
+  "short_name": "Clom",
+  "description": "Ta musique, ton player, tes playlists.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#050508",
+  "theme_color": "#050508",
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
