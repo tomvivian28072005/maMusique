@@ -18,10 +18,12 @@ cookies.txt
 # Environnement
 .env
 
-# Build PyInstaller
+# Build PyInstaller + Electron
 dist/
 build/
 *.spec
+*.nsi
+*.blockmap
 
 # Android (Capacitor)
 android/app/build/

@@ -1,11 +1,9 @@
 {
-  "name": "mamusique",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "directories": {
-    "doc": "docs"
-  },
+  "name": "clom",
+  "version": "0.1.15",
+  "description": "Clom — Lecteur de musique personnel",
+  "main": "electron/main.js",
+  "author": "Tom Vivian",
   "dependencies": {
     "@capacitor-community/sqlite": "^8.0.1",
     "@capacitor/android": "^8.2.0",
@@ -13,21 +11,29 @@
     "@capacitor/core": "^8.2.0",
     "@capacitor/filesystem": "^8.1.2",
     "acorn": "^8.16.0",
-    "acorn-loose": "^8.5.2"
+    "acorn-loose": "^8.5.2",
+    "electron-updater": "^6.8.3"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "electron .",
+    "build-python": "python build.py",
+    "build-electron": "electron-builder --win",
+    "build": "npm run build-python && npm run build-electron"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/tomvivian28072005/maMusique.git"
   },
   "keywords": [],
-  "author": "",
   "license": "ISC",
   "type": "commonjs",
   "bugs": {
     "url": "https://github.com/tomvivian28072005/maMusique/issues"
   },
-  "homepage": "https://github.com/tomvivian28072005/maMusique#readme"
+  "homepage": "https://github.com/tomvivian28072005/maMusique#readme",
+  "devDependencies": {
+    "electron": "^41.0.3",
+    "electron-builder": "^26.8.1",
+    "rcedit": "^5.0.2"
+  }
 }

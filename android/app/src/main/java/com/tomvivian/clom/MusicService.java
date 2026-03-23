@@ -5,9 +5,13 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.IBinder;
@@ -28,12 +32,31 @@ public class MusicService extends Service {
     private Bitmap currentCoverBitmap = null;
     private boolean isPlaying = true;
     private MediaSessionCompat mediaSession;
+    private BroadcastReceiver noisyReceiver;
 
     @Override
     public void onCreate() {
         super.onCreate();
         createNotificationChannel();
         initMediaSession();
+        registerNoisyReceiver();
+    }
+
+    private void registerNoisyReceiver() {
+        noisyReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (AudioManager.ACTION_AUDIO_BECOMING_NOISY.equals(intent.getAction())) {
+                    // Headphones unplugged → pause
+                    isPlaying = false;
+                    updatePlaybackState();
+                    updateNotification();
+                    sendActionToWebView("pause");
+                }
+            }
+        };
+        IntentFilter filter = new IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY);
+        registerReceiver(noisyReceiver, filter);
     }
 
     private void initMediaSession() {
@@ -261,6 +284,9 @@ public class MusicService extends Service {
 
     @Override
     public void onDestroy() {
+        if (noisyReceiver != null) {
+            try { unregisterReceiver(noisyReceiver); } catch (Exception e) {}
+        }
         if (mediaSession != null) {
             mediaSession.setActive(false);
             mediaSession.release();

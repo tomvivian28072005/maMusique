@@ -8,6 +8,7 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(YtExtractorPlugin.class);
         registerPlugin(MusicServicePlugin.class);
+        registerPlugin(FolderPickerPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

@@ -785,6 +785,59 @@ async function syncWithServer(serverUrl, onProgress) {
       }
     }
 
+    // 6b. Envoyer au serveur les fichiers que le serveur n'a pas
+    const serverTrackIds = new Set(serverManifest.tracks.map(t => t.id));
+    const localOnlyTracks = manifest.tracks.filter(t => !serverTrackIds.has(t.id));
+    // Aussi les tracks qu'on a en commun mais dont le serveur n'a pas le fichier
+    const serverTracksNoFile = serverManifest.tracks.filter(t => {
+      const localT = manifest.tracks.find(lt => lt.id === t.id);
+      return localT && !t.has_file;
+    });
+    const tracksToUpload = [...localOnlyTracks, ...serverTracksNoFile];
+
+    if (tracksToUpload.length > 0) {
+      for (let i = 0; i < tracksToUpload.length; i++) {
+        const t = tracksToUpload[i];
+        checkCancel();
+        report('files', `Envoi ${i + 1}/${tracksToUpload.length}...`);
+        try {
+          // Lire le fichier audio local
+          const audioExists = await localFileExists(t.file_path);
+          if (audioExists) {
+            const audioUrl = await readLocalFileAsUrl(t.file_path);
+            const audioRes = await fetch(audioUrl);
+            if (audioRes.ok) {
+              const audioBlob = await audioRes.blob();
+              const fileName = t.file_path.split('/').pop();
+              const formData = new FormData();
+              formData.append('file', audioBlob, fileName);
+              await fetch(`${serverUrl}/api/sync/tracks/${t.id}/upload`, {
+                method: 'POST', body: formData, signal
+              });
+            }
+          }
+          // Envoyer la cover si elle existe
+          if (t.cover_path) {
+            const coverClean = t.cover_path.split('?')[0];
+            const coverExists = await localFileExists(coverClean);
+            if (coverExists) {
+              const coverUrl = await readLocalFileAsUrl(coverClean);
+              const coverRes = await fetch(coverUrl);
+              if (coverRes.ok) {
+                const coverBlob = await coverRes.blob();
+                const coverName = coverClean.split('/').pop();
+                const coverForm = new FormData();
+                coverForm.append('file', coverBlob, coverName);
+                await fetch(`${serverUrl}/api/sync/covers/upload?track_id=${t.id}`, {
+                  method: 'POST', body: coverForm, signal
+                });
+              }
+            }
+          }
+        } catch (e) { console.warn('[Sync] Upload track failed', t.id, e); }
+      }
+    }
+
     // 7. Sync des playlist_tracks manquants
     const localPts = new Set((await dbQuery("SELECT playlist_id, track_id FROM playlist_tracks"))
       .map(pt => `${pt.playlist_id}-${pt.track_id}`));
@@ -1181,8 +1234,29 @@ async function getListenStats() {
     return { dow: i, name: ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'][i], total: row ? row.total : 0 };
   });
 
+  // Resolve cover URLs for display
+  const resolveCover = async (items) => {
+    for (const item of items) {
+      if (item.cover_path) {
+        const clean = item.cover_path.split('?')[0];
+        item.cover_path = await readLocalFileAsUrl(clean);
+      }
+    }
+  };
+  await resolveCover(topByCount);
+  await resolveCover(topByTime);
+  await resolveCover(recentDiscoveries);
+
+  // All-time daily data for timeline graph
+  const dailyAll = await dbQuery(`
+    SELECT date(listened_at) as day, SUM(duration_seconds) as total
+    FROM listen_history
+    GROUP BY date(listened_at)
+    ORDER BY day ASC
+  `);
+
   return {
-    totalSeconds, daily, daily30, topByCount, topByTime, topArtists, hourly, streak,
+    totalSeconds, daily, daily30, dailyAll, topByCount, topByTime, topArtists, hourly, streak,
     trackCount, listenCount, avgPerDay, bestDayOfWeek, longestSession, firstListen,
     recentDiscoveries, weekday
   };

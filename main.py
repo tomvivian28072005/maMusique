@@ -169,7 +169,7 @@ async def lifespan(app: FastAPI):
     cleanup_task.cancel()
 
 
-APP_VERSION = "0.1.14.2"
+APP_VERSION = "0.1.15"
 
 app = FastAPI(title="Clom", version=APP_VERSION, lifespan=lifespan)
 
@@ -527,10 +527,30 @@ def download_audio(url: str, db: Session) -> dict:
     record_change(db, "track", track.id, "create", track_to_dict(track))
 
     # Chercher une pochette HD automatiquement (MusicBrainz)
+    cover_found = None
     try:
-        fetch_and_save_cover(db, track.id, final_title, final_artist)
+        cover_found = fetch_and_save_cover(db, track.id, final_title, final_artist)
     except Exception as e:
         logger.warning(f"Auto cover fetch failed: {e}")
+
+    # Fallback : utiliser la thumbnail YouTube si MusicBrainz n'a rien trouvé
+    if not cover_found:
+        yt_thumb = info.get("thumbnail")
+        if yt_thumb:
+            try:
+                import urllib.request as _ur
+                req = _ur.Request(yt_thumb, headers={"User-Agent": "Clom/0.1"})
+                with _ur.urlopen(req, timeout=10) as resp:
+                    img_bytes = resp.read()
+                cover_filename = f"track_{track.id}.jpg"
+                cover_path = COVERS_DIR / cover_filename
+                cover_path.write_bytes(img_bytes)
+                track.cover_path = f"/covers/{cover_filename}"
+                db.commit()
+                record_change(db, "track", track.id, "update", track_to_dict(track))
+                logger.info(f"Cover YouTube fallback: /covers/{cover_filename}")
+            except Exception as e:
+                logger.warning(f"YouTube thumbnail fallback failed: {e}")
 
     active_downloads[url] = {"status": "done", "track_id": track.id, "_ts": time.time()}
     return {"track_id": track.id, "title": final_title, "artist": final_artist}
@@ -552,6 +572,36 @@ async def serve_manifest():
     if p.exists():
         return FileResponse(str(p), media_type="application/manifest+json")
     raise HTTPException(status_code=404)
+
+
+@app.get("/api/stats")
+async def api_stats(db: Session = Depends(get_db)):
+    """Statistiques d'écoute pour le desktop."""
+    from sqlalchemy import func as sqf
+    tracks = db.query(Track).all()
+    total_tracks = len(tracks)
+    total_plays = sum(t.play_count or 0 for t in tracks)
+    total_duration = sum((t.play_count or 0) * (t.duration or 180) for t in tracks)
+    # Top tracks
+    top = sorted([t for t in tracks if (t.play_count or 0) > 0], key=lambda t: t.play_count or 0, reverse=True)[:10]
+    top_tracks = [{"title": t.title, "artist": t.artist, "play_count": t.play_count, "cover_path": t.cover_path} for t in top]
+    # Top artists
+    artist_plays = {}
+    for t in tracks:
+        if t.play_count and t.play_count > 0:
+            artist_plays[t.artist] = artist_plays.get(t.artist, 0) + t.play_count
+    top_artists = sorted(artist_plays.items(), key=lambda x: x[1], reverse=True)[:10]
+    top_artists = [{"artist": a, "play_count": c} for a, c in top_artists]
+    # Oldest track
+    first_added = min((t.added_at for t in tracks if t.added_at), default=None)
+    return {
+        "total_tracks": total_tracks,
+        "total_plays": total_plays,
+        "total_duration_seconds": total_duration,
+        "top_tracks": top_tracks,
+        "top_artists": top_artists,
+        "first_added": str(first_added) if first_added else None,
+    }
 
 
 @app.get("/api/version")
@@ -1913,9 +1963,15 @@ async def api_sync_manifest(db: Session = Depends(get_db)):
     """Retourne un résumé de la bibliothèque pour comparaison rapide."""
     tracks = db.query(Track).all()
     playlists = get_playlists(db)
+    track_dicts = []
+    for t in tracks:
+        d = track_to_dict(t)
+        # Indiquer si le fichier audio existe physiquement
+        d["has_file"] = bool(t.file_path and Path(t.file_path.lstrip("/")).exists())
+        track_dicts.append(d)
     return {
         "device_id": get_device_id(db),
-        "tracks": [track_to_dict(t) for t in tracks],
+        "tracks": track_dicts,
         "playlists": [playlist_to_dict(p) for p in playlists],
         "playlist_tracks": [
             {"playlist_id": pt.playlist_id, "track_id": pt.track_id}
@@ -1935,6 +1991,69 @@ async def api_sync_track_file(track_id: int, db: Session = Depends(get_db)):
     if not file_abs.exists():
         raise HTTPException(status_code=404, detail="Fichier audio introuvable.")
     return FileResponse(str(file_abs), media_type="audio/mpeg", filename=file_abs.name)
+
+
+@app.post("/api/sync/tracks/{track_id}/upload")
+async def api_sync_track_upload(track_id: int, file: UploadFile = File(...), db: Session = Depends(get_db)):
+    """Reçoit un fichier audio envoyé depuis un autre appareil (mobile → PC)."""
+    track = db.query(Track).filter(Track.id == track_id).first()
+    if not track:
+        raise HTTPException(status_code=404, detail="Track not found.")
+
+    # Sauvegarder le fichier dans downloads/
+    ext = Path(file.filename).suffix or ".mp3"
+    safe_name = f"{track.artist} - {track.title}".replace("/", "-").replace("\\", "-")[:100]
+    filename = f"{safe_name}{ext}"
+    dest = DOWNLOADS_DIR / filename
+    # Éviter les doublons
+    counter = 1
+    while dest.exists():
+        dest = DOWNLOADS_DIR / f"{safe_name} ({counter}){ext}"
+        counter += 1
+
+    content = await file.read()
+    dest.write_bytes(content)
+
+    track.file_path = f"/downloads/{dest.name}"
+    db.commit()
+    record_change(db, "track", track.id, "update", track_to_dict(track))
+
+    logger.info(f"[Sync Upload] Track {track_id} reçue: {dest.name} ({len(content) // 1024} Ko)")
+    return {"ok": True, "file_path": track.file_path}
+
+
+@app.post("/api/sync/covers/upload")
+async def api_sync_cover_upload(track_id: int | None = None, playlist_id: int | None = None,
+                                file: UploadFile = File(...), db: Session = Depends(get_db)):
+    """Reçoit une cover envoyée depuis un autre appareil."""
+    if not track_id and not playlist_id:
+        raise HTTPException(status_code=400, detail="track_id ou playlist_id requis")
+
+    ext = Path(file.filename).suffix or ".jpg"
+    content = await file.read()
+
+    if track_id:
+        track = db.query(Track).filter(Track.id == track_id).first()
+        if not track:
+            raise HTTPException(status_code=404, detail="Track not found.")
+        cover_name = f"track_{track_id}{ext}"
+        cover_path = COVERS_DIR / cover_name
+        cover_path.write_bytes(content)
+        track.cover_path = f"/covers/{cover_name}?t={int(time.time())}"
+        db.commit()
+        record_change(db, "track", track.id, "update", track_to_dict(track))
+    elif playlist_id:
+        pl = db.query(Playlist).filter(Playlist.id == playlist_id).first()
+        if not pl:
+            raise HTTPException(status_code=404, detail="Playlist not found.")
+        cover_name = f"playlist_{playlist_id}{ext}"
+        cover_path = COVERS_DIR / cover_name
+        cover_path.write_bytes(content)
+        pl.cover_path = f"/covers/{cover_name}?t={int(time.time())}"
+        db.commit()
+        record_change(db, "playlist", pl.id, "update", playlist_to_dict(pl))
+
+    return {"ok": True}
 
 
 # ── CSV Import (Deezer, Spotify, etc.) ───────────────────────────────────────
@@ -2334,13 +2453,17 @@ async def api_search_youtube(q: str, limit: int = 5):
                 continue
             try:
                 data = json.loads(line)
+                vid = data.get("id", "")
+                thumb = data.get("thumbnail", "")
+                if not thumb and vid:
+                    thumb = f"https://i.ytimg.com/vi/{vid}/mqdefault.jpg"
                 results.append({
-                    "id": data.get("id", ""),
+                    "id": vid,
                     "title": data.get("title", ""),
                     "artist": data.get("channel", data.get("uploader", "")),
                     "duration": data.get("duration"),
-                    "thumbnail": data.get("thumbnail", ""),
-                    "url": f"https://www.youtube.com/watch?v={data.get('id', '')}",
+                    "thumbnail": thumb,
+                    "url": f"https://www.youtube.com/watch?v={vid}",
                 })
             except json.JSONDecodeError:
                 continue

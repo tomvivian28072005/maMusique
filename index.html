@@ -526,6 +526,20 @@
           </svg>
           Bibliothèque
         </button>
+        <button onclick="openDesktopStats()"
+          class="w-full px-3 py-2.5 rounded-xl text-sm font-semibold glass hover:bg-white/10 text-gray-300 hover:text-white transition flex items-center gap-3">
+          <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+          Statistiques
+        </button>
+        <button onclick="openDesktopExport()"
+          class="w-full px-3 py-2.5 rounded-xl text-sm font-semibold glass hover:bg-white/10 text-gray-300 hover:text-white transition flex items-center gap-3">
+          <svg class="w-5 h-5 text-orange-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          Exporter
+        </button>
         <button id="btn-sync-discover" onclick="openSyncDiscover()"
           class="w-full px-3 py-2.5 rounded-xl text-sm font-semibold glass hover:bg-white/10 text-gray-300 hover:text-white transition flex items-center gap-3">
           <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -538,7 +552,7 @@
     <div id="sidebar-overlay" onclick="document.getElementById('sidebar').classList.add('collapsed')"></div>
 
     <!-- Mobile selection bar -->
-    <div id="mob-selection-bar" class="hidden fixed top-0 left-0 right-0 z-50 bg-brand-600 text-white flex items-center justify-between px-4 py-3 shadow-lg">
+    <div id="mob-selection-bar" class="hidden fixed top-0 left-0 right-0 z-50 text-white flex items-center justify-between px-4 py-2.5 shadow-lg" style="background:rgba(5,5,8,0.95);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,0.08)">
       <span id="mob-selection-count" class="text-sm font-bold">0 sélectionné(s)</span>
       <div class="flex items-center gap-2">
         <button onclick="openBatchPickPlaylist(librarySelectionMode ? 'library' : 'playlist')" class="p-2 rounded-full hover:bg-white/20 transition" title="Ajouter à une playlist">
@@ -547,7 +561,7 @@
         <button onclick="if(librarySelectionMode) deleteSelectedTracks(); else removeSelectedFromPlaylist();" class="p-2 rounded-full hover:bg-white/20 transition" title="Supprimer">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
         </button>
-        <button onclick="selectAllLibraryTracks()" class="p-2 rounded-full hover:bg-white/20 transition" title="Tout sélectionner">
+        <button onclick="librarySelectionMode ? selectAllLibraryTracks() : selectAllPlaylistTracks()" class="p-2 rounded-full hover:bg-white/20 transition" title="Tout sélectionner">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
         </button>
         <button onclick="exitMobileSelection()" class="p-2 rounded-full hover:bg-white/20 transition" title="Quitter sélection">
@@ -635,6 +649,11 @@
           #player-cover-container { display: none !important; }
           #player .flex-1.flex.flex-col.items-center { display: none !important; }
           #player .flex.items-center.gap-2.w-1\/4 { display: none !important; }
+          /* Barre de progression compacte mobile */
+          #mob-compact-progress { display: block !important; }
+          /* Cacher les boutons desktop de sélection multiple sur mobile */
+          #playlist-select-all-btn, #playlist-remove-selected-btn, #playlist-add-selected-btn,
+          #library-select-all-btn, #library-delete-selected-btn, #library-add-selected-btn { display: none !important; }
           /* Info track : flex row avec play en premier */
           #player .flex.items-center.gap-4.w-1\/4 {
             width: 100% !important;
@@ -679,7 +698,7 @@
           /* Playlist cover editor mobile : même traitement */
           #playlist-modal .flex.items-center.gap-3.mb-3 { flex-direction: column !important; }
           #playlist-modal-cover-preview { width: 100% !important; height: auto !important; aspect-ratio: 1/1; }
-          #playlist-modal .flex.items-center.gap-3.mb-3 > .flex-1.flex.flex-col.gap-2 { display: none !important; }
+          #playlist-modal .flex.items-center.gap-3.mb-3 > .flex-1.flex.flex-col.gap-2 { flex-direction: row !important; width: 100% !important; }
           #playlist-cover-delete-x { display: flex !important; }
           /* Cacher texte PC "Glisser pour déplacer / Molette" sur mobile */
           .cover-pc-hint { display: none !important; }
@@ -1255,6 +1274,11 @@
                 <span class="text-sm text-gray-300">Exporter</span>
                 <svg class="w-4 h-4 text-gray-600 ml-auto" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
               </button>
+              <button onclick="mobOpenImport()" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition hover:bg-white/5 active:bg-white/10">
+                <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                <span class="text-sm text-gray-300">Importer</span>
+                <svg class="w-4 h-4 text-gray-600 ml-auto" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+              </button>
               <button onclick="mobOpenStorage()" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition hover:bg-white/5 active:bg-white/10">
                 <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"/></svg>
                 <span class="text-sm text-gray-300">Stockage</span>
@@ -1381,6 +1405,41 @@
               </div>
               <div class="flex flex-wrap gap-1.5 mb-4" id="eq-presets-row"></div>
               <div id="eq-sliders-container" class="flex items-end justify-between gap-1"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- VIEW: MOB IMPORT -->
+        <div id="view-mob-import" class="view">
+          <div class="p-4">
+            <div class="flex items-center gap-3 mb-4">
+              <button onclick="mobTabSettings()" class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/10 transition">
+                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+              </button>
+              <h2 class="text-lg font-semibold text-white">Importer</h2>
+            </div>
+            <div class="space-y-2">
+              <button onclick="mobImportAudioFiles()" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition bg-white/5 hover:bg-white/10 active:bg-white/15">
+                <svg class="w-5 h-5 text-brand-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/></svg>
+                <div>
+                  <span class="text-sm text-white font-medium">Fichiers audio</span>
+                  <p class="text-[11px] text-gray-500">Sélectionner des MP3, OGG, FLAC…</p>
+                </div>
+              </button>
+              <button onclick="mobImportAudioFolder()" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition bg-white/5 hover:bg-white/10 active:bg-white/15">
+                <svg class="w-5 h-5 text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+                <div>
+                  <span class="text-sm text-white font-medium">Dossier de musique</span>
+                  <p class="text-[11px] text-gray-500">Importer tout un dossier d'un coup</p>
+                </div>
+              </button>
+              <div class="flex items-center gap-3 px-4 py-3 rounded-xl opacity-50">
+                <svg class="w-5 h-5 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                <div>
+                  <span class="text-sm text-gray-400 font-medium">Import CSV / URL YouTube</span>
+                  <p class="text-[11px] text-gray-600">Disponible sur PC uniquement</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1580,10 +1639,12 @@
             </div>
             <!-- Progress bar -->
             <div class="px-6 py-2">
-              <div id="fs-mob-progress" class="h-1.5 bg-white/10 rounded-full cursor-pointer relative"
+              <div id="fs-mob-progress" class="cursor-pointer relative" style="touch-action:none;padding:8px 0;"
                 onmousedown="startSeek(event)" ontouchstart="startSeek(event)">
-                <div id="fs-mob-progress-bar" class="h-full bg-neon-purple rounded-full relative" style="width:0%">
-                  <div class="absolute right-0 top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-white rounded-full shadow-lg"></div>
+                <div class="h-1.5 bg-white/10 rounded-full relative">
+                  <div id="fs-mob-progress-bar" class="h-full bg-neon-purple rounded-full relative" style="width:0%">
+                    <div class="absolute right-0 top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-white rounded-full shadow-lg"></div>
+                  </div>
                 </div>
               </div>
               <div class="flex justify-between mt-1">
@@ -1622,7 +1683,6 @@
               <div class="flex items-center justify-between mb-3">
                 <span class="text-sm font-semibold text-white">File d'attente</span>
                 <div class="flex items-center gap-2">
-                  <button onclick="clearUserQueue()" class="px-3 py-1 rounded-full text-[11px] font-semibold transition" style="background: rgba(255,255,255,0.08); color: #aaa;">Vider</button>
                   <button onclick="toggleMobQueuePanel()" class="p-1 rounded-full text-gray-400 hover:text-white transition">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                   </button>
@@ -1666,6 +1726,13 @@
 
   <!-- â"€â"€ PLAYER (Modern Floating Glass) â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ -->
   <footer id="player" class="fixed bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-48px)] max-w-5xl z-40 hidden">
+    <!-- Mobile compact progress bar (above the glass bar) -->
+    <div id="mob-compact-progress" class="hidden w-full cursor-pointer relative" style="touch-action:none;padding:6px 0;"
+      onmousedown="startSeek(event)" ontouchstart="startSeek(event)">
+      <div class="w-full h-[3px] bg-white/10 relative">
+        <div id="mob-compact-progress-bar" class="h-full bg-neon-purple rounded-r-full" style="width:0%"></div>
+      </div>
+    </div>
     <div class="glass rounded-3xl p-4 border border-white/10 shadow-2xl backdrop-blur-2xl">
       <div class="flex items-center gap-6">
         
@@ -1757,8 +1824,8 @@
           <!-- Progress bar -->
           <div class="flex items-center gap-2 w-full">
             <span id="player-time" class="text-[10px] text-gray-400 font-mono w-10 text-right">0:00</span>
-            <div id="progress-container" class="flex-1 h-1 bg-white/10 rounded-full cursor-pointer group relative"
-              onmousedown="startSeek(event)" onmousemove="hoverSeek(event)" onmouseleave="hideSeekTooltip()">
+            <div id="progress-container" class="flex-1 h-1 bg-white/10 rounded-full cursor-pointer group relative" style="touch-action:none"
+              onmousedown="startSeek(event)" ontouchstart="startSeek(event)" onmousemove="hoverSeek(event)" onmouseleave="hideSeekTooltip()">
               <div id="progress-bar" class="h-full bg-neon-purple rounded-full relative shadow-[0_0_10px_rgba(37,99,235,0.5)] transition-all duration-300" style="width:0%">
                 <div class="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition shadow-neon-purple/50"></div>
               </div>
@@ -2310,10 +2377,13 @@
   <script src="api-local.js"></script>
   <script>
     // â"€â"€ State â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+    // ── Electron (desktop) ────────────────────────────────
+    const _isElectron = !!(window.electronAPI && window.electronAPI.isElectron);
+
     // ── Capacitor (mobile) ────────────────────────────────
     const _isCapacitor = typeof window.Capacitor !== 'undefined';
     const _isOfflineMode = _isCapacitor; // mobile = offline (DB locale)
-    const MOBILE_APP_VERSION = '0.1.14.1';
+    const MOBILE_APP_VERSION = '0.1.15';
     let API_BASE = '';
     let _localDbReady = false;
 
@@ -2531,7 +2601,7 @@
         html += userQueue.map((t, i) => `
           <div class="flex items-center gap-2.5 p-2 rounded-lg bg-white/5 mob-queue-item" data-queue-idx="${i}"
             draggable="false" ontouchstart="queueDragStart(event, ${i})" ontouchmove="queueDragMove(event)" ontouchend="queueDragEnd(event)">
-            <div class="p-1 text-gray-600 cursor-grab flex-shrink-0">
+            <div class="p-1 text-gray-600 cursor-grab flex-shrink-0" onmousedown="queueDragStart(event, ${i})"
               <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M4 8h16M4 16h16"/></svg>
             </div>
             <div class="w-8 h-8 rounded-md overflow-hidden flex-shrink-0 bg-gray-800">
@@ -2551,7 +2621,9 @@
       const shown = autoUpcoming.slice(0, 15);
       if (shown.length > 0) {
         html += '<p class="text-[10px] text-gray-500 font-semibold uppercase tracking-wider mb-1 mt-2">Playlist</p>';
-        html += shown.map((t, i) => `
+        html += shown.map((t, i) => {
+          const realIdx = autoQueueIndex + 1 + i;
+          return `
           <div class="flex items-center gap-2.5 p-2 rounded-lg bg-white/[0.03]">
             <div class="w-8 h-8 rounded-md overflow-hidden flex-shrink-0 bg-gray-800">
               ${t.cover_path ? `<img src="${assetUrl(t.cover_path)}" class="w-full h-full object-cover"/>` : `<div class="w-full h-full flex items-center justify-center"><svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19V6l12-3v13"/></svg></div>`}
@@ -2560,8 +2632,11 @@
               <p class="text-xs text-white truncate">${escapeHtml(t.title)}</p>
               <p class="text-[10px] text-gray-500 truncate">${escapeHtml(t.artist)}</p>
             </div>
-          </div>
-        `).join('');
+            <button onclick="removeFromAutoQueue(${realIdx}); renderMobQueue();" class="p-1 text-gray-600 active:text-red-400 flex-shrink-0">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+          </div>`;
+        }).join('');
         if (autoUpcoming.length > 15) {
           html += `<p class="text-[10px] text-gray-600 text-center py-1">+ ${autoUpcoming.length - 15} autres</p>`;
         }
@@ -2579,25 +2654,34 @@
       renderQueue();
     }
 
-    // Touch drag reorder for mobile queue
+    // Drag reorder for queue (touch + mouse)
     let _qDragIdx = -1, _qDragStartY = 0, _qDragEl = null;
+    function _qGetY(e) {
+      return e.touches ? e.touches[0].clientY : e.clientY;
+    }
+    function _qGetEndY(e) {
+      return e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
+    }
     function queueDragStart(e, idx) {
       _qDragIdx = idx;
-      _qDragStartY = e.touches[0].clientY;
-      _qDragEl = e.currentTarget;
+      _qDragStartY = _qGetY(e);
+      _qDragEl = e.currentTarget.closest ? e.currentTarget.closest('.mob-queue-item') : e.currentTarget;
       _qDragEl.style.opacity = '0.6';
       _qDragEl.style.zIndex = '10';
+      if (!e.touches) {
+        e.preventDefault();
+        document.addEventListener('mousemove', queueDragMove);
+        document.addEventListener('mouseup', queueDragEnd);
+      }
     }
     function queueDragMove(e) {
       if (_qDragIdx < 0 || !_qDragEl) return;
       if (e.cancelable) e.preventDefault();
-      const dy = e.touches[0].clientY - _qDragStartY;
+      const dy = _qGetY(e) - _qDragStartY;
       _qDragEl.style.transform = `translateY(${dy}px)`;
-      // Find target index based on movement
       const itemH = _qDragEl.offsetHeight + 4;
       const offset = Math.round(dy / itemH);
       const target = Math.max(0, Math.min(userQueue.length - 1, _qDragIdx + offset));
-      // Highlight target position
       document.querySelectorAll('.mob-queue-item').forEach((el, i) => {
         el.style.borderTop = (i === target && target < _qDragIdx) ? '2px solid #2563eb' : '';
         el.style.borderBottom = (i === target && target > _qDragIdx) ? '2px solid #2563eb' : '';
@@ -2605,7 +2689,9 @@
     }
     function queueDragEnd(e) {
       if (_qDragIdx < 0 || !_qDragEl) return;
-      const dy = e.changedTouches[0].clientY - _qDragStartY;
+      document.removeEventListener('mousemove', queueDragMove);
+      document.removeEventListener('mouseup', queueDragEnd);
+      const dy = _qGetEndY(e) - _qDragStartY;
       const itemH = _qDragEl.offsetHeight + 4;
       const offset = Math.round(dy / itemH);
       const target = Math.max(0, Math.min(userQueue.length - 1, _qDragIdx + offset));
@@ -3796,6 +3882,14 @@
     async function removeFromPlaylist(trackId) {
       if (!currentPlaylistId) return;
       await clomFetch(`/api/playlists/${currentPlaylistId}/tracks/${trackId}`, { method: 'DELETE' });
+      // Retirer de la queue auto pour éviter que le morceau continue de jouer
+      const qIdx = autoQueue.findIndex(t => t.id === trackId);
+      if (qIdx !== -1) {
+        autoQueue.splice(qIdx, 1);
+        if (autoQueueIndex >= qIdx && autoQueueIndex > 0) autoQueueIndex--;
+      }
+      userQueue = userQueue.filter(t => t.id !== trackId);
+      renderQueue();
       fetchPlaylistTracks();
       fetchPlaylists();
     }
@@ -3812,6 +3906,154 @@
         const el = document.getElementById('sync-step-' + s);
         if (el) el.classList.toggle('hidden', s !== step);
       });
+    }
+
+    // ── Desktop Stats ──────────────────────────────────
+    async function openDesktopStats() {
+      const modal = document.createElement('div');
+      modal.id = 'desktop-stats-modal';
+      modal.className = 'fixed inset-0 z-50 flex items-center justify-center';
+      modal.style.cssText = 'background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);';
+      modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+      modal.innerHTML = `
+        <div class="glass rounded-2xl p-6 w-full max-w-lg max-h-[80vh] overflow-y-auto" style="animation: modalSlideIn 0.25s ease-out;">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-bold text-white">Statistiques</h2>
+            <button onclick="document.getElementById('desktop-stats-modal').remove()" class="p-1 text-gray-400 hover:text-white transition">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+          </div>
+          <div id="desktop-stats-content"><p class="text-gray-500 text-sm text-center py-6">Chargement...</p></div>
+        </div>`;
+      document.body.appendChild(modal);
+      try {
+        const res = await clomFetch('/api/stats');
+        const s = await res.json();
+        const container = document.getElementById('desktop-stats-content');
+        const firstAdded = s.first_added ? new Date(s.first_added).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+        const totalH = Math.floor(s.total_duration_seconds / 3600);
+        const totalM = Math.floor((s.total_duration_seconds % 3600) / 60);
+        const totalTime = totalH > 0 ? `${totalH}h ${totalM}min` : `${totalM} min`;
+        let html = `<div class="grid grid-cols-3 gap-3 mb-5">
+          <div class="bg-white/5 rounded-xl p-3 text-center">
+            <p class="text-xl font-bold text-white">${s.total_tracks}</p>
+            <p class="text-[11px] text-gray-500 mt-1">Morceaux</p>
+          </div>
+          <div class="bg-white/5 rounded-xl p-3 text-center">
+            <p class="text-xl font-bold text-white">${s.total_plays}</p>
+            <p class="text-[11px] text-gray-500 mt-1">Écoutes</p>
+          </div>
+          <div class="bg-white/5 rounded-xl p-3 text-center">
+            <p class="text-xl font-bold text-white">${totalTime}</p>
+            <p class="text-[11px] text-gray-500 mt-1">Temps total</p>
+          </div>
+        </div>
+        <p class="text-xs text-gray-500 mb-4">Membre depuis ${firstAdded}</p>`;
+        if (s.top_tracks.length > 0) {
+          html += `<h3 class="text-sm font-semibold text-gray-300 mb-2">Top morceaux</h3>
+          <div class="space-y-1.5 mb-5">`;
+          s.top_tracks.forEach((t, i) => {
+            html += `<div class="flex items-center gap-3 p-2 rounded-lg bg-white/5">
+              <span class="text-xs font-bold text-gray-500 w-5 text-right">${i + 1}</span>
+              <div class="w-8 h-8 rounded overflow-hidden bg-gray-800 flex-shrink-0">
+                ${t.cover_path ? `<img src="${t.cover_path}" class="w-full h-full object-cover"/>` : '<div class="w-full h-full flex items-center justify-center"><svg class="w-4 h-4 text-gray-600" fill="currentColor" viewBox="0 0 24 24"><path d="M9 3v11.586a3 3 0 1 0 2 2.829V8h6V3H9z"/></svg></div>'}
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm text-white truncate">${escapeHtml(t.title)}</p>
+                <p class="text-[10px] text-gray-500 truncate">${escapeHtml(t.artist)}</p>
+              </div>
+              <span class="text-xs text-gray-400 font-mono">${t.play_count}</span>
+            </div>`;
+          });
+          html += '</div>';
+        }
+        if (s.top_artists.length > 0) {
+          html += `<h3 class="text-sm font-semibold text-gray-300 mb-2">Top artistes</h3>
+          <div class="space-y-1.5">`;
+          s.top_artists.forEach((a, i) => {
+            html += `<div class="flex items-center gap-3 p-2 rounded-lg bg-white/5">
+              <span class="text-xs font-bold text-gray-500 w-5 text-right">${i + 1}</span>
+              <p class="flex-1 text-sm text-white">${escapeHtml(a.artist)}</p>
+              <span class="text-xs text-gray-400 font-mono">${a.play_count} écoutes</span>
+            </div>`;
+          });
+          html += '</div>';
+        }
+        container.innerHTML = html;
+      } catch(e) { document.getElementById('desktop-stats-content').innerHTML = '<p class="text-red-400 text-sm text-center py-6">Erreur de chargement</p>'; }
+    }
+
+    // ── Desktop Export ──────────────────────────────────
+    async function openDesktopExport() {
+      const modal = document.createElement('div');
+      modal.id = 'desktop-export-modal';
+      modal.className = 'fixed inset-0 z-50 flex items-center justify-center';
+      modal.style.cssText = 'background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);';
+      modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+      modal.innerHTML = `
+        <div class="glass rounded-2xl p-6 w-full max-w-md" style="animation: modalSlideIn 0.25s ease-out;">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-bold text-white">Exporter</h2>
+            <button onclick="document.getElementById('desktop-export-modal').remove()" class="p-1 text-gray-400 hover:text-white transition">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+          </div>
+          <div class="space-y-3">
+            <button onclick="desktopExportJSON()" class="w-full px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-left transition flex items-center gap-3">
+              <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12m0 0l-4-4m4 4l4-4"/></svg>
+              <div>
+                <p class="text-sm font-semibold text-white">Exporter en JSON</p>
+                <p class="text-[11px] text-gray-500">Toutes les playlists et morceaux</p>
+              </div>
+            </button>
+            <button onclick="desktopExportM3U()" class="w-full px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-left transition flex items-center gap-3">
+              <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z"/></svg>
+              <div>
+                <p class="text-sm font-semibold text-white">Exporter en M3U</p>
+                <p class="text-[11px] text-gray-500">Playlist actuelle (compatible VLC)</p>
+              </div>
+            </button>
+          </div>
+        </div>`;
+      document.body.appendChild(modal);
+    }
+
+    async function desktopExportJSON() {
+      try {
+        const [tracksRes, playlistsRes] = await Promise.all([
+          clomFetch('/api/tracks'), clomFetch('/api/playlists')
+        ]);
+        const tracks = await tracksRes.json();
+        const playlists = await playlistsRes.json();
+        const data = { exported_at: new Date().toISOString(), tracks, playlists };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `clom-export-${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        document.getElementById('desktop-export-modal')?.remove();
+      } catch(e) { alert('Erreur lors de l\'export'); }
+    }
+
+    async function desktopExportM3U() {
+      try {
+        const res = await clomFetch(`/api/playlists/${activePlaylistId}/tracks`);
+        const tracks = await res.json();
+        let m3u = '#EXTM3U\n';
+        tracks.forEach(t => {
+          m3u += `#EXTINF:${Math.round(t.duration || 0)},${t.artist} - ${t.title}\n`;
+          m3u += `${t.file_path}\n`;
+        });
+        const blob = new Blob([m3u], { type: 'audio/x-mpegurl' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        const pl = sidebarPlaylistsCache.find(p => p.id === activePlaylistId);
+        a.download = `${pl ? pl.name : 'playlist'}.m3u`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        document.getElementById('desktop-export-modal')?.remove();
+      } catch(e) { alert('Erreur lors de l\'export M3U'); }
     }
 
     async function openSyncDiscover() {
@@ -4346,10 +4588,20 @@
     }
 
     function togglePlayerFavorite() {
-      if (_previewIsYtStream && _ytSearchQueueIndex >= 0 && _ytSearchQueue[_ytSearchQueueIndex]) {
-        // Download and add to favorites
-        const q = _ytSearchQueue[_ytSearchQueueIndex];
-        mobYtFav(q.url);
+      if (_previewIsYtStream) {
+        if (_isCapacitor && _ytSearchQueueIndex >= 0 && _ytSearchQueue[_ytSearchQueueIndex]) {
+          // Mobile : download and add to favorites
+          const q = _ytSearchQueue[_ytSearchQueueIndex];
+          mobYtFav(q.url);
+        } else if (!_isCapacitor && _ytPreviewUrl && !_ytPreviewFavDone) {
+          // Desktop : download and add to favorites
+          ytFavAndDownload(_ytPreviewUrl);
+          _ytPreviewFavDone = true;
+          const outline = document.getElementById('heart-outline');
+          const filled = document.getElementById('heart-filled');
+          if (outline) outline.classList.add('hidden');
+          if (filled) filled.classList.remove('hidden');
+        }
         return;
       }
       if (!activeTrackId) return;
@@ -4425,7 +4677,7 @@
       
       return `
         <div id="track-${idStr}" class="track-card ${isPlaying ? 'active' : ''} flex items-center gap-4 px-4 py-3 cursor-pointer group"
-             ${_isCapacitor && !selectionMode ? `onclick="trackLongPressClick('${selectionKind}', ${t.id}, () => { ${playFn} }, event)" ontouchstart="trackLongPressStart('${selectionKind}', ${t.id}, event)" ontouchend="trackLongPressEnd()" ontouchcancel="trackLongPressEnd()" oncontextmenu="event.preventDefault()"` : `onclick="${rowClick}"`}>
+             ${_isCapacitor && !selectionMode ? `onclick="trackLongPressClick('${selectionKind}', ${t.id}, () => { ${playFn} }, event)" ontouchstart="trackLongPressStart('${selectionKind}', ${t.id}, event)" ontouchend="trackLongPressEnd()" ontouchcancel="trackLongPressEnd()" oncontextmenu="event.preventDefault()"` : `onclick="${rowClick}" oncontextmenu="event.preventDefault(); event.stopPropagation(); toggleMenu('${idStr}')"`}>
           ${selectionMode ? `
           <input type="checkbox" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation()" onchange="toggleTrackSelection('${selectionKind}', ${t.id})"
             class="w-4 h-4 rounded border-gray-600 bg-gray-800 text-brand-500 focus:ring-brand-500 flex-shrink-0" />
@@ -4498,6 +4750,10 @@
                 <button onclick="event.stopPropagation(); openPickPlaylist(${t.id})">
                   <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 3v11.586a3 3 0 1 0 2 2.829V8h6V3H9z"/></svg>
                   Playlists
+                </button>
+                <button onclick="event.stopPropagation(); closeAllMenus(); openTrackDetails(${t.id}, '${escapeJs(t.title)}', '${escapeJs(t.artist)}')">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                  Détails
                 </button>
                 ${prefix === 'plt' ? `
                 <button class="menu-delete" onclick="event.stopPropagation(); closeAllMenus(); removeFromPlaylist(${t.id})">
@@ -5088,11 +5344,13 @@
           img.classList.remove('hidden');
           img.src = frameUrl;
           img.style.transform = transform;
+          img.style.objectFit = '';
         });
       } else {
         img.classList.remove('hidden');
         img.src = assetUrl(coverPath);
         img.style.transform = transform;
+        img.style.objectFit = '';
       }
     }
 
@@ -5151,7 +5409,7 @@
         return;
       }
       // Block fullscreen only if nothing is playing at all
-      if (!activeTrackId && !_previewIsYtStream) return;
+      if (!activeTrackId && !_previewIsYtStream && !audio.src) return;
 
       const img = document.getElementById('player-cover-img');
       const fullscreenImg = document.getElementById('fullscreen-cover-img');
@@ -5538,15 +5796,21 @@
       // Section file auto
       if (shownAutoUpcoming.length > 0) {
         html += '<p class="text-[10px] text-brand-500 font-semibold uppercase tracking-wider mb-1 mt-2">Playlist</p>';
-        html += shownAutoUpcoming.map((t, i) => `
+        html += shownAutoUpcoming.map((t, i) => {
+          const realIdx = autoQueueIndex + 1 + i;
+          return `
           <div class="flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-gray-800/50 group">
             <span class="text-[10px] text-gray-600 w-4 text-right">${shownUserQueue.length + i + 1}</span>
             <div class="flex-1 min-w-0">
               <p class="text-xs text-white truncate">${escapeHtml(t.title)}</p>
               <p class="text-[10px] text-gray-500 truncate">${escapeHtml(t.artist)}</p>
             </div>
-          </div>
-        `).join('');
+            <button onclick="removeFromAutoQueue(${realIdx})"
+              class="p-1 rounded text-gray-600 hover:text-red-400 transition opacity-0 group-hover:opacity-100" title="Retirer">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+          </div>`;
+        }).join('');
       }
 
       if (totalCount > shownCount) {
@@ -5563,6 +5827,15 @@
     function removeFromUserQueue(index) {
       userQueue.splice(index, 1);
       renderQueue();
+      renderMobQueue();
+    }
+
+    function removeFromAutoQueue(realIdx) {
+      if (realIdx < 0 || realIdx >= autoQueue.length) return;
+      autoQueue.splice(realIdx, 1);
+      if (autoQueueIndex >= realIdx && autoQueueIndex > 0) autoQueueIndex--;
+      renderQueue();
+      renderMobQueue();
     }
 
     function toggleRepeat() {
@@ -5717,28 +5990,61 @@
     function getVirtualDuration() { return getEffectiveEnd() - getEffectiveStart(); }
     function getVirtualTime() { return Math.max(0, audio.currentTime - getEffectiveStart()); }
 
-    // Progress bar seek
+    // Progress bar seek — with overlay to capture all touch events during drag
+    let _seekBarRect = null;
     function startSeek(e) {
+      e.preventDefault();
+      e.stopPropagation();
       isSeeking = true;
       const isTouch = e.type === 'touchstart';
-      doSeek(isTouch ? e.touches[0] : e, e.currentTarget);
       const bar = e.currentTarget;
-      const onMove = (ev) => doSeek(isTouch ? ev.touches[0] : ev, bar);
-      const moveEvt = isTouch ? 'touchmove' : 'mousemove';
-      const upEvt = isTouch ? 'touchend' : 'mouseup';
-      const onUp = () => { isSeeking = false; document.removeEventListener(moveEvt, onMove); document.removeEventListener(upEvt, onUp); };
-      document.addEventListener(moveEvt, onMove);
-      document.addEventListener(upEvt, onUp);
-      if (isTouch) e.preventDefault();
+      _seekBarRect = bar.getBoundingClientRect();
+      doSeek(isTouch ? e.touches[0] : e);
+
+      // Create transparent overlay to capture all touch/mouse events during drag
+      let overlay = document.getElementById('seek-overlay');
+      if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'seek-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;touch-action:none;';
+        document.body.appendChild(overlay);
+      }
+      overlay.style.display = 'block';
+
+      const onMove = (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const pt = isTouch ? ev.touches[0] : ev;
+        if (pt) doSeek(pt);
+      };
+      const onUp = (ev) => {
+        ev.stopPropagation();
+        isSeeking = false;
+        _seekBarRect = null;
+        overlay.style.display = 'none';
+        overlay.removeEventListener(isTouch ? 'touchmove' : 'mousemove', onMove);
+        overlay.removeEventListener(isTouch ? 'touchend' : 'mouseup', onUp);
+      };
+      overlay.addEventListener(isTouch ? 'touchmove' : 'mousemove', onMove, { passive: false });
+      overlay.addEventListener(isTouch ? 'touchend' : 'mouseup', onUp, { passive: false });
     }
 
-    function doSeek(e, bar) {
-      if (!bar) bar = document.getElementById('progress-container');
-      const rect = bar.getBoundingClientRect();
+    function doSeek(e) {
+      if (!e || typeof e.clientX !== 'number') return;
+      const rect = _seekBarRect || document.getElementById('progress-container')?.getBoundingClientRect();
+      if (!rect || rect.width <= 0) return;
       const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
       if (audio.duration) {
         const vDur = getVirtualDuration();
         audio.currentTime = getEffectiveStart() + pct * vDur;
+        // Update bars visually during seek
+        const pctStr = Math.min(pct * 100, 100) + '%';
+        const pb = document.getElementById('progress-bar');
+        if (pb) pb.style.width = pctStr;
+        const mb = document.getElementById('fs-mob-progress-bar');
+        if (mb) mb.style.width = pctStr;
+        const mc = document.getElementById('mob-compact-progress-bar');
+        if (mc) mc.style.width = pctStr;
       }
     }
 
@@ -5751,11 +6057,15 @@
       const vDur = getVirtualDuration();
       const vTime = getVirtualTime();
       const pct = vDur > 0 ? (vTime / vDur) * 100 : 0;
-      document.getElementById('progress-bar').style.width = Math.min(pct, 100) + '%';
+      // Skip bar updates while user is dragging to avoid visual fighting
+      if (!isSeeking) {
+        document.getElementById('progress-bar').style.width = Math.min(pct, 100) + '%';
+        const mobBar = document.getElementById('fs-mob-progress-bar');
+        if (mobBar) mobBar.style.width = Math.min(pct, 100) + '%';
+        const mobCompact = document.getElementById('mob-compact-progress-bar');
+        if (mobCompact) mobCompact.style.width = Math.min(pct, 100) + '%';
+      }
       document.getElementById('player-time').textContent = formatTime(vTime);
-      // Mobile fullscreen progress sync
-      const mobBar = document.getElementById('fs-mob-progress-bar');
-      if (mobBar) mobBar.style.width = Math.min(pct, 100) + '%';
       const mobTime = document.getElementById('fs-mob-time');
       if (mobTime) mobTime.textContent = formatTime(vTime);
       // Update lock screen position state
@@ -5842,8 +6152,8 @@
     });
 
     // â"€â"€ Delete track â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
-    async function deleteTrack(id) {
-      if (!confirm('Supprimer ce titre ?')) return;
+    async function deleteTrack(id, skipConfirm = false) {
+      if (!skipConfirm && !confirm('Supprimer ce titre ?')) return false;
       if (id === activeTrackId) {
         const audio = document.getElementById('audio-player');
         audio.pause(); audio.src = '';
@@ -5855,7 +6165,16 @@
         }
       }
       await clomFetch(`/api/tracks/${id}`, { method: 'DELETE' });
+      // Remove from auto queue
+      const qIdx = autoQueue.findIndex(t => t.id === id);
+      if (qIdx !== -1) { autoQueue.splice(qIdx, 1); if (autoQueueIndex >= qIdx && autoQueueIndex > 0) autoQueueIndex--; }
+      userQueue = userQueue.filter(t => t.id !== id);
       fetchTracks();
+      // Update mobile library if open
+      _libAllTracks = _libAllTracks.filter(t => t.id !== id);
+      _libFilteredTracks = _libFilteredTracks.filter(t => t.id !== id);
+      renderLibraryList(_libFilteredTracks);
+      return true;
     }
 
     // â"€â"€ Download â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
@@ -6073,6 +6392,7 @@
     let _ytSearchQueue = []; // {url, title, artist, thumbnailUrl}
     let _ytSearchQueueIndex = -1;
     let _ytPreviewFavDone = false;
+    let _ytPreviewUrl = null;
 
     async function runYtSearch() {
       const title = document.getElementById('yt-search-title').value.trim();
@@ -6095,12 +6415,16 @@
           for (const t of localTracks.slice(0, 8)) {
             const tt = escapeHtml(t.title || '');
             const ta = escapeHtml(t.artist || '');
-            html += `<div class="flex items-center gap-2 p-2 rounded-lg hover:bg-white/5 transition cursor-pointer"
+            const tc = t.cover_path ? assetUrl(t.cover_path) : '';
+            html += `<div class="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 transition cursor-pointer"
               onclick="handleTrackClick(${t.id},'${tt.replace(/'/g,"&#39;")}','${ta.replace(/'/g,"&#39;")}','${(t.file_path||'').replace(/'/g,"&#39;")}',${t.volume_coeff||1},null,null,'${(t.cover_path||'').replace(/'/g,"&#39;")}',${t.cover_zoom||1},${t.cover_offset_x||0},${t.cover_offset_y||0},${t.stereo_balance||0})">
               <span class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></span>
+              <div class="w-10 h-10 rounded bg-gray-800 flex-shrink-0 overflow-hidden">
+                ${tc ? `<img src="${tc}" class="w-full h-full object-cover" style="transform:scale(${t.cover_zoom||1})" />` : `<svg class="w-5 h-5 m-auto text-gray-600" fill="currentColor" viewBox="0 0 24 24"><path d="M9 3v11.586a3 3 0 1 0 2 2.829V8h6V3H9z"/></svg>`}
+              </div>
               <div class="flex-1 min-w-0">
-                <p class="text-xs text-white truncate">${tt}</p>
-                <p class="text-[10px] text-gray-500 truncate">${ta}</p>
+                <p class="text-sm text-white truncate">${tt}</p>
+                <p class="text-xs text-gray-500 truncate">${ta}</p>
               </div>
             </div>`;
           }
@@ -6132,16 +6456,20 @@
       const url = (yt.url || '').replace(/'/g, "\\'");
       const safeUrl = escapeHtml(yt.url || '');
       const videoId = (yt.id || '').replace(/'/g, "\\'");
+      const thumb = escapeHtml(yt.thumbnail || '');
       return `
-        <div class="flex items-center gap-2 p-2 rounded-lg hover:bg-white/5 transition cursor-pointer group yt-result-row"
+        <div class="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 transition cursor-pointer group yt-result-row"
           data-yt-url="${safeUrl}"
-          onclick="previewYtInPlayer('${videoId}', '${title.replace(/'/g,"&#39;")}', '${artist.replace(/'/g,"&#39;")}')">
+          onclick="previewYtInPlayer('${videoId}', '${title.replace(/'/g,"&#39;")}', '${artist.replace(/'/g,"&#39;")}', '${thumb.replace(/'/g,"&#39;")}')">
           <span class="w-2 h-2 flex-shrink-0 yt-row-dot flex items-center justify-center">
             <span class="w-2 h-2 rounded-full bg-orange-500 inline-block"></span>
           </span>
+          <div class="w-10 h-10 rounded bg-gray-800 flex-shrink-0 overflow-hidden">
+            ${thumb ? `<img src="${thumb}" class="w-full h-full object-cover" loading="lazy" />` : `<svg class="w-5 h-5 m-auto text-gray-600" fill="currentColor" viewBox="0 0 24 24"><path d="M9 3v11.586a3 3 0 1 0 2 2.829V8h6V3H9z"/></svg>`}
+          </div>
           <div class="flex-1 min-w-0">
-            <p class="text-xs text-white truncate">${title}</p>
-            <p class="text-[10px] text-gray-500 truncate">${artist} ${dur ? '· ' + dur : ''}</p>
+            <p class="text-sm text-white truncate">${title}</p>
+            <p class="text-xs text-gray-500 truncate">${artist} ${dur ? '· ' + dur : ''}</p>
           </div>
           <div class="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition yt-row-actions">
             <button onclick="event.stopPropagation(); ytFavAndDownload('${url}')"
@@ -6163,21 +6491,32 @@
       return `${m}:${sec.toString().padStart(2, '0')}`;
     }
 
-    async function previewYtInPlayer(videoId, title, artist) {
+    async function previewYtInPlayer(videoId, title, artist, thumbUrl) {
       const player = document.getElementById('player');
       player.classList.remove('hidden');
       document.getElementById('player-title').textContent = title;
       document.getElementById('player-artist').textContent = artist;
       updatePlayerMarquees();
-      document.getElementById('player-cover-img').classList.add('hidden');
-      document.getElementById('player-cover-video').classList.add('hidden');
-      document.getElementById('player-no-cover').classList.remove('hidden');
+      const coverImg = document.getElementById('player-cover-img');
+      const coverVideo = document.getElementById('player-cover-video');
+      const noCover = document.getElementById('player-no-cover');
+      if (thumbUrl) {
+        coverImg.src = thumbUrl; coverImg.classList.remove('hidden');
+        coverImg.style.transform = 'none';
+        coverImg.style.objectFit = 'cover';
+        coverVideo.classList.add('hidden'); noCover.classList.add('hidden');
+      } else {
+        coverImg.classList.add('hidden'); coverVideo.classList.add('hidden');
+        noCover.classList.remove('hidden');
+      }
       _previewIsYtStream = true;
+      _ytPreviewFavDone = false;
+      _ytPreviewUrl = `https://www.youtube.com/watch?v=${videoId}`;
       activeTrackId = null;
       updatePlayerHeart();
-      // Disable heart + menu for preview
+      // Enable heart for download, hide menu
       const favBtn = document.getElementById('btn-player-fav');
-      if (favBtn) { favBtn.style.opacity = '0.3'; favBtn.style.pointerEvents = 'none'; }
+      if (favBtn) { favBtn.style.opacity = '1'; favBtn.style.pointerEvents = 'auto'; }
       document.querySelectorAll('#player .track-menu').forEach(m => { m.style.opacity = '0.3'; m.style.pointerEvents = 'none'; });
       document.getElementById('p-play').classList.add('hidden');
       document.getElementById('p-pause').classList.add('hidden');
@@ -7302,8 +7641,37 @@
           } else if (coverFile) {
             const reader = new FileReader();
             reader.onload = e => {
-              updatePlayerCover(e.target.result, body.cover_zoom, body.cover_offset_x, body.cover_offset_y);
-              updateDynamicBg(activeTrackId, e.target.result);
+              const url = e.target.result;
+              const tx = (body.cover_offset_x || 0) * 50;
+              const ty = (body.cover_offset_y || 0) * 50;
+              const transform = `translate(${tx}%, ${ty}%) scale(${body.cover_zoom || 1.0})`;
+              updatePlayerCover(url, body.cover_zoom, body.cover_offset_x, body.cover_offset_y);
+              updateDynamicBg(activeTrackId, url);
+              // Sync fullscreen covers with smooth crossfade
+              const fsImg = document.getElementById('fullscreen-cover-img');
+              if (fsImg) {
+                const tmpImg = new Image();
+                tmpImg.onload = () => {
+                  fsImg.style.transition = 'opacity 0.2s ease';
+                  fsImg.style.opacity = '0';
+                  setTimeout(() => {
+                    fsImg.src = url; fsImg.classList.remove('hidden'); fsImg.style.transform = transform;
+                    fsImg.style.opacity = '1';
+                  }, 200);
+                };
+                tmpImg.src = url;
+              }
+              const fsMobImg = document.getElementById('fs-mob-cover-img');
+              if (fsMobImg) {
+                fsMobImg.style.transition = 'opacity 0.2s ease';
+                fsMobImg.style.opacity = '0';
+                setTimeout(() => {
+                  fsMobImg.src = url; fsMobImg.classList.remove('hidden'); fsMobImg.style.transform = transform;
+                  fsMobImg.style.opacity = '1';
+                }, 200);
+              }
+              document.getElementById('fullscreen-no-cover-bg')?.classList.add('hidden');
+              document.getElementById('fs-mob-no-cover')?.classList.add('hidden');
             };
             reader.readAsDataURL(coverFile);
           } else if (pendingMbCover && activeTrackCoverPath) {
@@ -7316,16 +7684,12 @@
             const transform = `translate(${translateX}%, ${translateY}%) scale(${body.cover_zoom || 1.0})`;
             document.getElementById('player-cover-img').style.transform = transform;
             document.getElementById('player-cover-video').style.transform = transform;
+            // Sync fullscreen covers
+            const fsImg = document.getElementById('fullscreen-cover-img');
+            if (fsImg) fsImg.style.transform = transform;
+            const fsMobImg = document.getElementById('fs-mob-cover-img');
+            if (fsMobImg) fsMobImg.style.transform = transform;
             updateDynamicBg(activeTrackId);
-          }
-          // Always sync mobile fullscreen cover with player
-          const mobImg = document.getElementById('fs-mob-cover-img');
-          const playerImg = document.getElementById('cover-img') || document.getElementById('player-cover-img');
-          if (mobImg && playerImg && !playerImg.classList.contains('hidden') && playerImg.src) {
-            mobImg.src = playerImg.src;
-            mobImg.classList.remove('hidden');
-            mobImg.style.transform = playerImg.style.transform;
-            document.getElementById('fs-mob-no-cover')?.classList.add('hidden');
           }
         }
         coverMarkedForDeletion = false;
@@ -7404,6 +7768,10 @@
 
     // â"€â"€ Keyboard shortcuts â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
     document.addEventListener('keydown', (e) => {
+      // Ne pas capturer si on tape dans un input/textarea
+      const tag = document.activeElement?.tagName;
+      const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+
       // Edit track modal
       if (!document.getElementById('rename-modal').classList.contains('hidden')) {
         if (e.key === 'Enter' && !['trim-start', 'trim-end'].includes(document.activeElement?.id)) submitRename();
@@ -7420,6 +7788,51 @@
       if (!document.getElementById('add-tracks-modal').classList.contains('hidden')) {
         if (e.key === 'Escape') closeAddTracksModal();
         return;
+      }
+
+      if (isInput) return; // pas de raccourcis pendant la saisie
+
+      // Fullscreen cover
+      const fsMob = document.getElementById('fs-mobile-layout');
+      const fsVisible = fsMob && !fsMob.classList.contains('hidden');
+
+      if (e.key === 'Escape' && fsVisible) {
+        e.preventDefault();
+        closeCoverFullscreen();
+        return;
+      }
+
+      // Raccourcis globaux
+      switch(e.key) {
+        case ' ':
+          e.preventDefault();
+          togglePlayPause();
+          break;
+        case 'ArrowRight':
+          if (fsVisible) { e.preventDefault(); playNext(); }
+          break;
+        case 'ArrowLeft':
+          if (fsVisible) { e.preventDefault(); playPrev(); }
+          break;
+        case 'ArrowUp':
+          if (fsVisible) { e.preventDefault(); audio.volume = Math.min(1, audio.volume + 0.05); }
+          break;
+        case 'ArrowDown':
+          if (fsVisible) { e.preventDefault(); audio.volume = Math.max(0, audio.volume - 0.05); }
+          break;
+        case 'f':
+        case 'F':
+          if (activeTrackId) { e.preventDefault(); fsVisible ? closeCoverFullscreen() : openFullscreenCover(); }
+          break;
+        case 'm':
+        case 'M':
+          e.preventDefault();
+          audio.muted = !audio.muted;
+          break;
+        case 's':
+        case 'S':
+          if (!e.ctrlKey) { e.preventDefault(); toggleShuffle(); }
+          break;
       }
     });
 
@@ -7773,6 +8186,8 @@
     }
 
     async function checkForUpdates() {
+      // Electron: electron-updater gère les MAJ automatiquement
+      if (_isElectron) return;
       try {
         const [localRes, remoteRes] = await Promise.all([
           clomFetch('/api/version'),
@@ -7816,12 +8231,17 @@
     }
     async function mobInstallUpdate() {
       if (!_mobileUpdateUrl) return;
+      const text = document.getElementById('mob-update-text');
+      if (text) text.textContent = 'Ouverture du téléchargement…';
       // Ouvrir le lien dans le navigateur externe
       if (window.Capacitor && window.Capacitor.Plugins.Browser) {
         await window.Capacitor.Plugins.Browser.open({ url: _mobileUpdateUrl });
       } else {
         window.open(_mobileUpdateUrl, '_system');
       }
+      setTimeout(() => {
+        if (text) text.textContent = `Mise à jour v${_mobileUpdateVersion}`;
+      }, 3000);
     }
 
     // ── Capacitor: config serveur ───────────────────────
@@ -8450,7 +8870,7 @@
               style="${_selectedPlaylistIds.has(p.id) ? 'background: var(--accent); border-color: var(--accent);' : ''}">
               ${_selectedPlaylistIds.has(p.id) ? '<svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>' : ''}
             </div>` : ''}
-          <div class="pl-drag-handle p-1 text-gray-600 flex-shrink-0 cursor-grab" ontouchstart="event.stopPropagation(); plDragStart(event, ${idx})" ontouchmove="plDragMove(event)" ontouchend="plDragEnd(event)">
+          <div class="pl-drag-handle p-1 text-gray-600 flex-shrink-0 cursor-grab" ontouchstart="event.stopPropagation(); plDragStart(event, ${idx})" ontouchmove="plDragMove(event)" ontouchend="plDragEnd(event)" onmousedown="event.stopPropagation(); plDragStart(event, ${idx})"
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M4 8h16M4 16h16"/></svg>
           </div>
           <div class="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-gradient-to-br from-gray-700 to-gray-800">
@@ -8528,26 +8948,31 @@
       renderMobPlaylistGrid();
     }
 
-    // Drag reorder playlists
+    // Drag reorder playlists (touch + mouse)
     let _plDragIdx = -1, _plDragStartY = 0, _plDragEl = null, _plDragging = false;
+    function _plGetY(e) { return e.touches ? e.touches[0].clientY : e.clientY; }
+    function _plGetEndY(e) { return e.changedTouches ? e.changedTouches[0].clientY : e.clientY; }
     function plDragStart(e, idx) {
       _plDragIdx = idx;
-      _plDragStartY = e.touches[0].clientY;
+      _plDragStartY = _plGetY(e);
       _plDragging = false;
-      // The handle is inside the row, grab the parent row
       _plDragEl = e.currentTarget.closest('.mob-pl-item');
-      cancelPlaylistLongPress(); // Cancel long-press if drag starts
+      cancelPlaylistLongPress();
+      if (!e.touches) {
+        e.preventDefault();
+        document.addEventListener('mousemove', plDragMove);
+        document.addEventListener('mouseup', plDragEnd);
+      }
     }
     function plDragMove(e) {
       if (_plDragIdx < 0 || !_plDragEl) return;
       if (e.cancelable) e.preventDefault();
-      const dy = e.touches[0].clientY - _plDragStartY;
+      const dy = _plGetY(e) - _plDragStartY;
       if (Math.abs(dy) > 5) _plDragging = true;
       if (!_plDragging) return;
       _plDragEl.style.transform = `translateY(${dy}px)`;
       _plDragEl.style.opacity = '0.6';
       _plDragEl.style.zIndex = '10';
-      // Visual indicator on other items
       const itemH = _plDragEl.offsetHeight + 8;
       const offset = Math.round(dy / itemH);
       const target = Math.max(0, Math.min(sidebarPlaylistsCache.length - 1, _plDragIdx + offset));
@@ -8558,11 +8983,13 @@
       });
     }
     async function plDragEnd(e) {
+      document.removeEventListener('mousemove', plDragMove);
+      document.removeEventListener('mouseup', plDragEnd);
       if (_plDragIdx < 0 || !_plDragEl || !_plDragging) {
         _plDragIdx = -1; _plDragEl = null; _plDragging = false;
         return;
       }
-      const dy = e.changedTouches[0].clientY - _plDragStartY;
+      const dy = _plGetEndY(e) - _plDragStartY;
       const itemH = _plDragEl.offsetHeight + 8;
       const offset = Math.round(dy / itemH);
       const target = Math.max(0, Math.min(sidebarPlaylistsCache.length - 1, _plDragIdx + offset));
@@ -8733,6 +9160,8 @@
       const noCover = document.getElementById('player-no-cover');
       if (thumbUrl) {
         coverImg.src = thumbUrl; coverImg.classList.remove('hidden');
+        coverImg.style.transform = 'none';
+        coverImg.style.objectFit = 'cover';
         coverVideo.classList.add('hidden'); noCover.classList.add('hidden');
       } else {
         coverImg.classList.add('hidden'); coverVideo.classList.add('hidden');
@@ -9212,6 +9641,14 @@
       }
     }
 
+    function mobOpenImport() {
+      currentView = 'mob-import';
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active-view'));
+      document.getElementById('view-mob-import').classList.add('active-view');
+      const dyBg = document.getElementById('dynamic-bg');
+      if (dyBg) dyBg.style.opacity = '0';
+    }
+
     async function mobOpenStorage() {
       currentView = 'mob-storage';
       document.querySelectorAll('.view').forEach(v => v.classList.remove('active-view'));
@@ -9309,10 +9746,175 @@
                 <span class="text-[11px] text-gray-500 ml-1">(${coverCount} fichiers)</span>
               </div>
             </div>
-          </div>`;
+          </div>
+          <div class="bg-white/5 rounded-xl p-4">
+            <div class="flex items-center gap-2 mb-2">
+              <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+              <span class="text-sm font-semibold text-white">Dossier des musiques</span>
+            </div>
+            <p id="clom-folder-path" class="text-[11px] text-gray-500 font-mono break-all mb-3">Chargement…</p>
+            <button onclick="openClomFileManager()" class="w-full py-2.5 rounded-lg text-sm font-semibold bg-white/10 text-white hover:bg-white/15 active:bg-white/20 transition flex items-center justify-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+              Ouvrir dans l'explorateur
+            </button>
+          </div>
+          `;
+        loadClomFolderPath();
       } catch(err) {
         content.innerHTML = `<p class="text-sm text-red-400 text-center py-8">Erreur : ${err.message}</p>`;
       }
+    }
+
+    async function loadClomFolderPath() {
+      const el = document.getElementById('clom-folder-path');
+      if (!el) return;
+      const FolderPicker = window.Capacitor?.Plugins?.FolderPicker;
+      if (FolderPicker) {
+        try {
+          const result = await FolderPicker.getClomFolderPath();
+          el.textContent = result.path;
+        } catch(e) {
+          el.textContent = 'Android/data/com.tomvivian.clom/files/Clom/downloads';
+        }
+      } else {
+        el.textContent = 'Non disponible sur PC';
+      }
+    }
+
+    async function openClomFileManager() {
+      const FolderPicker = window.Capacitor?.Plugins?.FolderPicker;
+      if (!FolderPicker) { alert('Non disponible sur PC'); return; }
+      try {
+        const result = await FolderPicker.openFileManager();
+        if (result && result.error === 'no_file_manager') {
+          alert('Aucun gestionnaire de fichiers trouvé.\n\nChemin : ' + result.path);
+        }
+      } catch(e) {
+        alert('Impossible d\'ouvrir l\'explorateur : ' + e.message);
+      }
+    }
+
+    async function mobImportAudioFiles() {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'audio/*';
+      input.multiple = true;
+      input.onchange = async () => {
+        const files = Array.from(input.files);
+        if (!files.length) return;
+        let imported = 0;
+        for (const file of files) {
+          try {
+            const name = file.name.replace(/\.[^.]+$/, '');
+            const ext = file.name.split('.').pop() || 'mp3';
+            const ts = Date.now();
+            const safeName = name.replace(/[^a-zA-Z0-9àâäéèêëïîôùûüÿçæœ\s_-]/gi, '').substring(0, 80);
+            const filePath = `downloads/${safeName}_${ts}.${ext}`;
+            // Save file
+            await saveLocalFile(filePath, file);
+            // Add to DB
+            await dbRun(
+              `INSERT INTO tracks (title, artist, file_path, duration, added_at)
+               VALUES (?, '', ?, 0, datetime('now'))`,
+              [name, '/' + filePath]
+            );
+            await recordLocalChange("track", (await dbQuery("SELECT last_insert_rowid() as id"))[0].id, "create");
+            imported++;
+          } catch(e) { console.warn('Import failed for', file.name, e); }
+        }
+        if (imported > 0) {
+          alert(`${imported} morceau(x) importé(s) !\n\nLes fichiers ont été copiés. Tu peux supprimer les originaux pour libérer de l'espace.`);
+          fetchTracks();
+          mobOpenStorage(); // refresh stats
+        }
+      };
+      input.click();
+    }
+
+    let _importStopped = false;
+    let _importedTrackIds = []; // For cancel/undo
+
+    async function mobImportAudioFolder() {
+      const FolderPicker = window.Capacitor?.Plugins?.FolderPicker;
+      if (!FolderPicker) {
+        alert('Non disponible sur cette plateforme');
+        return;
+      }
+      try {
+        const result = await FolderPicker.pickFolder();
+        const files = result.files || [];
+        if (!files.length) { alert('Aucun fichier audio trouvé dans ce dossier.'); return; }
+        const existing = await dbQuery("SELECT title FROM tracks");
+        const existingTitles = new Set(existing.map(r => r.title.toLowerCase().trim()));
+        let imported = 0, skipped = 0;
+        _importStopped = false;
+        _importedTrackIds = [];
+        // Show progress
+        const progressEl = document.createElement('div');
+        progressEl.className = 'fixed inset-0 z-[9999] bg-black/80 flex items-center justify-center';
+        progressEl.innerHTML = `<div class="bg-gray-900 rounded-xl p-6 w-80 text-center">
+          <p class="text-white font-semibold mb-2">Import en cours…</p>
+          <p id="import-folder-progress" class="text-sm text-gray-400 mb-3">0 / ${files.length}</p>
+          <div class="h-1.5 bg-white/10 rounded-full overflow-hidden mb-4"><div id="import-folder-bar" class="h-full rounded-full transition-all" style="width:0%;background:var(--accent);"></div></div>
+          <div class="flex gap-2">
+            <button id="import-stop-btn" onclick="_importStopped=true;this.textContent='Arrêt…';this.disabled=true" class="flex-1 py-2 rounded-lg text-sm font-semibold bg-red-600/30 text-red-300 hover:bg-red-600/50 transition">Arrêter</button>
+            <button id="import-cancel-btn" onclick="_importStopped=true;cancelFolderImport()" class="flex-1 py-2 rounded-lg text-sm font-semibold bg-gray-700 text-gray-300 hover:bg-gray-600 transition">Annuler tout</button>
+          </div>
+        </div>`;
+        document.body.appendChild(progressEl);
+        for (let i = 0; i < files.length; i++) {
+          if (_importStopped) break;
+          const f = files[i];
+          const name = f.name.replace(/\.[^.]+$/, '');
+          document.getElementById('import-folder-progress').textContent = `${i + 1} / ${files.length} — ${name}`;
+          document.getElementById('import-folder-bar').style.width = ((i + 1) / files.length * 100) + '%';
+          if (existingTitles.has(name.toLowerCase().trim())) { skipped++; continue; }
+          try {
+            const ext = f.name.split('.').pop() || 'mp3';
+            const ts = Date.now();
+            const safeName = name.replace(/[^a-zA-Z0-9àâäéèêëïîôùûüÿçæœ\s_-]/gi, '').substring(0, 80);
+            const localPath = `downloads/${safeName}_${ts}.${ext}`;
+            const fileData = await FolderPicker.readFileBase64({ uri: f.uri });
+            const { Filesystem } = Capacitor.Plugins;
+            await Filesystem.writeFile({ path: 'Clom/' + localPath, data: fileData.base64, directory: 'EXTERNAL', recursive: true });
+            await dbRun(
+              `INSERT INTO tracks (title, artist, file_path, duration, added_at)
+               VALUES (?, '', ?, 0, datetime('now'))`,
+              [name, '/' + localPath]
+            );
+            const newId = (await dbQuery("SELECT last_insert_rowid() as id"))[0].id;
+            await recordLocalChange("track", newId, "create");
+            _importedTrackIds.push({ id: newId, filePath: localPath });
+            imported++;
+            existingTitles.add(name.toLowerCase().trim());
+          } catch(e) { console.warn('Import failed for', f.name, e); }
+        }
+        progressEl.remove();
+        if (_importedTrackIds.length === 0 && _importStopped) return;
+        let msg = `${imported} morceau(x) importé(s)`;
+        if (skipped > 0) msg += `, ${skipped} doublon(s) ignoré(s)`;
+        if (_importStopped) msg += ` (arrêté)`;
+        if (imported > 0) msg += `\n\nLes fichiers ont été copiés. Tu peux supprimer les originaux pour libérer de l'espace.`;
+        alert(msg);
+        if (imported > 0) fetchTracks();
+      } catch(e) {
+        if (e.message && !e.message.includes('cancel')) alert('Erreur : ' + e.message);
+      }
+    }
+
+    async function cancelFolderImport() {
+      // Delete all tracks that were just imported
+      const { Filesystem } = Capacitor.Plugins;
+      for (const item of _importedTrackIds) {
+        try {
+          await dbRun("DELETE FROM tracks WHERE id = ?", [item.id]);
+          await Filesystem.deleteFile({ path: 'Clom/' + item.filePath, directory: 'EXTERNAL' });
+        } catch(e) {}
+      }
+      _importedTrackIds = [];
+      document.querySelector('.fixed.z-\\[9999\\]')?.remove();
+      alert('Import annulé, les fichiers ont été supprimés.');
+      fetchTracks();
     }
 
     // Update active tab based on current view
@@ -9631,6 +10233,9 @@
           <button onclick="openRenameFromPlayer(); mobCloseTrackDetail()" class="flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 text-white text-sm">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Modifier
           </button>
+          <button onclick="deleteTrack(${t.id}).then(ok=>{if(ok)mobCloseTrackDetail()})" class="flex items-center gap-2 px-4 py-2 rounded-full bg-red-500/20 text-red-400 text-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg> Supprimer
+          </button>
         </div>
 
         <!-- Metadata -->
@@ -9689,6 +10294,68 @@
       if (!t.album || !t.mbid) {
         fetchMusicBrainzInfo(t);
       }
+    }
+
+    // ── Desktop Track Details (MusicBrainz) ──────────────
+    async function openTrackDetails(trackId, title, artist) {
+      const modal = document.createElement('div');
+      modal.id = 'desktop-track-detail-modal';
+      modal.className = 'fixed inset-0 z-50 flex items-center justify-center';
+      modal.style.cssText = 'background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);';
+      modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+      modal.innerHTML = `
+        <div class="glass rounded-2xl p-6 w-full max-w-md" style="animation: modalSlideIn 0.25s ease-out;">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-bold text-white">Détails</h2>
+            <button onclick="document.getElementById('desktop-track-detail-modal').remove()" class="p-1 text-gray-400 hover:text-white transition">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+          </div>
+          <div class="mb-4">
+            <p class="text-sm font-semibold text-white">${escapeHtml(title)}</p>
+            <p class="text-xs text-gray-400">${escapeHtml(artist)}</p>
+          </div>
+          <div id="desktop-mb-info"><p class="text-gray-500 text-xs text-center py-4">Recherche de métadonnées…</p></div>
+        </div>`;
+      document.body.appendChild(modal);
+      // Fetch MusicBrainz info
+      try {
+        const titleClean = (title || '').replace(/\(.*?\)|\[.*?\]/g, '').trim();
+        const artistClean = (artist || '').replace(/\(.*?\)|\[.*?\]/g, '').trim();
+        const q = encodeURIComponent('recording:"' + titleClean + '" AND artist:"' + artistClean + '"');
+        const res = await fetch('https://musicbrainz.org/ws/2/recording/?query=' + q + '&fmt=json&limit=5', {
+          headers: { 'User-Agent': 'Clom/0.1 (personal music player)' }
+        });
+        const container = document.getElementById('desktop-mb-info');
+        if (!container) return;
+        if (!res.ok) { container.innerHTML = '<p class="text-gray-500 text-xs">Aucune info trouvée</p>'; return; }
+        const data = await res.json();
+        const recordings = data.recordings || [];
+        if (!recordings.length) { container.innerHTML = '<p class="text-gray-500 text-xs">Aucune info trouvée</p>'; return; }
+        const titleLow = titleClean.toLowerCase();
+        const artistLow = artistClean.toLowerCase();
+        const best = recordings.find(r => {
+          const t = (r.title || '').toLowerCase();
+          const artists = (r['artist-credit'] || []).map(a => (a.name || a.artist?.name || '').toLowerCase()).join(' ');
+          return (t.includes(titleLow) || titleLow.includes(t)) && (artists.includes(artistLow) || artistLow.includes(artists.split(' ')[0]));
+        }) || recordings[0];
+        if (best.score != null && best.score < 50) { container.innerHTML = '<p class="text-gray-500 text-xs">Aucune correspondance fiable</p>'; return; }
+        const allReleases = (best.releases || []).filter(r => r.date);
+        allReleases.sort((a, b) => (a.date || '9999').localeCompare(b.date || '9999'));
+        const oldestRelease = allReleases[0];
+        const genres = (best.tags || []).sort((a, b) => (b.count || 0) - (a.count || 0)).slice(0, 5);
+        const lengthMs = best.length;
+        let html = '<div class="space-y-2">';
+        if (oldestRelease) {
+          if (oldestRelease.title) html += '<div class="flex justify-between"><span class="text-xs text-gray-500">Album</span><span class="text-sm text-white">' + escapeHtml(oldestRelease.title) + '</span></div>';
+          if (oldestRelease.date) html += '<div class="flex justify-between"><span class="text-xs text-gray-500">Sortie</span><span class="text-sm text-white">' + oldestRelease.date.substring(0, 4) + '</span></div>';
+          if (oldestRelease.country) html += '<div class="flex justify-between"><span class="text-xs text-gray-500">Pays</span><span class="text-sm text-white">' + oldestRelease.country + '</span></div>';
+        }
+        if (genres.length) html += '<div class="flex justify-between"><span class="text-xs text-gray-500">Genres</span><span class="text-sm text-white text-right">' + genres.map(g => escapeHtml(g.name)).join(', ') + '</span></div>';
+        if (lengthMs) html += '<div class="flex justify-between"><span class="text-xs text-gray-500">Durée</span><span class="text-sm text-white">' + formatSeconds(lengthMs / 1000) + '</span></div>';
+        html += '</div>';
+        container.innerHTML = html;
+      } catch(e) { const c = document.getElementById('desktop-mb-info'); if (c) c.innerHTML = '<p class="text-gray-500 text-xs">Erreur de recherche</p>'; }
     }
 
     async function fetchMusicBrainzInfo(track) {
@@ -9839,16 +10506,17 @@
           </div>` : ''}
         </div>`;
 
-        // Daily chart
+        // Daily chart (7 days)
         html += `<div class="mb-6">
-          <h3 class="text-sm font-semibold text-gray-300 mb-3">7 derniers jours</h3>
+          <h3 class="text-sm font-semibold text-gray-300 mb-2">7 derniers jours</h3>
+          <p id="stat-7d-tooltip" class="text-[10px] text-gray-500 mb-2 h-4">&nbsp;</p>
           <div class="flex items-end justify-between gap-1.5" style="height: 100px;">
-            ${days.map(d => {
+            ${days.map((d, i) => {
               const pct = maxDay > 0 ? Math.max((d.seconds / maxDay) * 100, 4) : 4;
-              return `<div class="flex-1 flex flex-col items-center gap-1">
+              const mins = Math.round(d.seconds / 60);
+              return `<div class="flex-1 flex flex-col items-center gap-1" onclick="document.getElementById('stat-7d-tooltip').textContent='${d.label} : ${mins} min'">
                 <div class="w-full rounded-t-md" style="height: ${pct}%; background: var(--accent); min-height: 4px;"></div>
                 <span class="text-[9px] text-gray-500">${d.label}</span>
-                <span class="text-[8px] text-gray-600">${d.seconds > 0 ? formatDurationLong(d.seconds) : ''}</span>
               </div>`;
             }).join('')}
           </div>
@@ -9863,16 +10531,18 @@
             d.setDate(d.getDate() - i);
             const key = d.toISOString().split('T')[0];
             const dayData = stats.daily30.find(x => x.day === key);
-            d30.push({ seconds: dayData ? dayData.total : 0 });
+            d30.push({ seconds: dayData ? dayData.total : 0, date: d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) });
           }
           const max30 = Math.max(...d30.map(d => d.seconds), 1);
           html += `<div class="mb-6">
-            <h3 class="text-sm font-semibold text-gray-300 mb-3">30 derniers jours</h3>
+            <h3 class="text-sm font-semibold text-gray-300 mb-2">30 derniers jours</h3>
+            <p id="stat-30d-tooltip" class="text-[10px] text-gray-500 mb-2 h-4">&nbsp;</p>
             <div class="flex items-end gap-px" style="height: 60px;">
-              ${d30.map(d => {
+              ${d30.map((d, i) => {
                 const pct = max30 > 0 ? Math.max((d.seconds / max30) * 100, 2) : 2;
                 const active = d.seconds > 0;
-                return `<div class="flex-1" style="height: ${pct}%; background: ${active ? 'var(--accent)' : 'rgba(255,255,255,0.04)'}; min-height: 2px; border-radius: 1px 1px 0 0; opacity: ${active ? 1 : 0.3};"></div>`;
+                const mins = Math.round(d.seconds / 60);
+                return `<div class="flex-1" onclick="document.getElementById('stat-30d-tooltip').textContent='${d.date} : ${mins} min'" style="height: ${pct}%; background: ${active ? 'var(--accent)' : 'rgba(255,255,255,0.04)'}; min-height: 2px; border-radius: 1px 1px 0 0; opacity: ${active ? 1 : 0.3}; cursor: pointer;"></div>`;
               }).join('')}
             </div>
             <div class="flex justify-between mt-1">
@@ -9948,19 +10618,46 @@
           </div>`;
         }
 
-        // Distribution par jour de la semaine
-        if (stats.weekday && stats.weekday.some(d => d.total > 0)) {
-          const maxW = Math.max(...stats.weekday.map(d => d.total), 1);
+        // Timeline graph (all-time, one point per day)
+        if (stats.dailyAll && stats.dailyAll.length > 0) {
+          const allDays = stats.dailyAll;
+          const maxAll = Math.max(...allDays.map(d => d.total), 1);
+          // Show last N days that fit, growing with history
+          const displayDays = allDays.slice(-Math.min(allDays.length, 60));
           html += `<div class="mb-6">
-            <h3 class="text-sm font-semibold text-gray-300 mb-3">Jours de la semaine</h3>
-            <div class="flex items-end justify-between gap-1.5" style="height: 80px;">
-              ${stats.weekday.map(d => {
-                const pct = maxW > 0 ? Math.max((d.total / maxW) * 100, 4) : 4;
-                return `<div class="flex-1 flex flex-col items-center gap-1">
-                  <div class="w-full rounded-t-md" style="height: ${pct}%; background: var(--accent); min-height: 4px;"></div>
-                  <span class="text-[9px] text-gray-500">${d.name}</span>
-                </div>`;
-              }).join('')}
+            <h3 class="text-sm font-semibold text-gray-300 mb-2">Historique d'écoute</h3>
+            <p id="stat-timeline-tooltip" class="text-[10px] text-gray-500 mb-2 h-4">&nbsp;</p>
+            <div class="relative" style="height: 80px;">
+              <svg width="100%" height="100%" viewBox="0 0 ${displayDays.length * 10} 80" preserveAspectRatio="none" style="overflow:visible">
+                <polyline fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"
+                  points="${displayDays.map((d, i) => {
+                    const x = displayDays.length === 1 ? 5 * 10 : (i / (displayDays.length - 1)) * (displayDays.length * 10);
+                    const y = 76 - (d.total / maxAll) * 72;
+                    return `${x},${y}`;
+                  }).join(' ')}" />
+                <linearGradient id="timeline-grad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="var(--accent)" stop-opacity="0.3"/>
+                  <stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>
+                </linearGradient>
+                <polygon fill="url(#timeline-grad)"
+                  points="0,80 ${displayDays.map((d, i) => {
+                    const x = displayDays.length === 1 ? 5 * 10 : (i / (displayDays.length - 1)) * (displayDays.length * 10);
+                    const y = 76 - (d.total / maxAll) * 72;
+                    return `${x},${y}`;
+                  }).join(' ')} ${displayDays.length * 10},80" />
+                ${displayDays.map((d, i) => {
+                  const x = displayDays.length === 1 ? 5 * 10 : (i / (displayDays.length - 1)) * (displayDays.length * 10);
+                  const y = 76 - (d.total / maxAll) * 72;
+                  const dateStr = new Date(d.day).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+                  const mins = Math.round(d.total / 60);
+                  return `<circle cx="${x}" cy="${y}" r="3" fill="var(--accent)" opacity="0.7" style="cursor:pointer"
+                    onclick="document.getElementById('stat-timeline-tooltip').textContent='${dateStr} : ${mins} min'" />`;
+                }).join('')}
+              </svg>
+            </div>
+            <div class="flex justify-between mt-1">
+              <span class="text-[8px] text-gray-600">${displayDays.length > 0 ? new Date(displayDays[0].day).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : ''}</span>
+              <span class="text-[8px] text-gray-600">Aujourd'hui</span>
             </div>
           </div>`;
         }
@@ -9990,12 +10687,14 @@
         if (stats.hourly && stats.hourly.some(h => h.total > 0)) {
           const maxH = Math.max(...stats.hourly.map(h => h.total), 1);
           html += `<div class="mb-6">
-            <h3 class="text-sm font-semibold text-gray-300 mb-3">Heures d'écoute</h3>
+            <h3 class="text-sm font-semibold text-gray-300 mb-2">Heures d'écoute</h3>
+            <p id="stat-hourly-tooltip" class="text-[10px] text-gray-500 mb-2 h-4">&nbsp;</p>
             <div class="flex items-end gap-px" style="height: 70px;">
               ${stats.hourly.map(h => {
                 const pct = maxH > 0 ? Math.max((h.total / maxH) * 100, 2) : 2;
                 const active = h.total > 0;
-                return `<div class="flex-1 flex flex-col items-center justify-end h-full">
+                const mins = Math.round(h.total / 60);
+                return `<div class="flex-1 flex flex-col items-center justify-end h-full" style="cursor:pointer" onclick="document.getElementById('stat-hourly-tooltip').textContent='${h.hour}h : ${mins} min'">
                   <div class="w-full rounded-t-sm" style="height: ${pct}%; background: ${active ? 'var(--accent)' : 'rgba(255,255,255,0.04)'}; min-height: 2px; opacity: ${active ? 1 : 0.3};"></div>
                 </div>`;
               }).join('')}
@@ -10040,7 +10739,7 @@
       if (currentView === 'mob-playlists') setActiveTab('mob-tab-playlists');
       else if (currentView === 'mob-shared') setActiveTab('mob-tab-shared');
       else if (currentView === 'mob-search') setActiveTab('mob-tab-search');
-      else if (currentView === 'mob-sync' || currentView === 'mob-settings' || currentView === 'mob-library' || currentView === 'mob-stats' || currentView === 'mob-theme' || currentView === 'mob-eq' || currentView === 'mob-storage' || currentView === 'mob-export') setActiveTab('mob-tab-settings');
+      else if (currentView === 'mob-sync' || currentView === 'mob-settings' || currentView === 'mob-library' || currentView === 'mob-stats' || currentView === 'mob-theme' || currentView === 'mob-eq' || currentView === 'mob-storage' || currentView === 'mob-export' || currentView === 'mob-import') setActiveTab('mob-tab-settings');
       else if (currentView === 'playlist-detail') {
         if (currentPlaylistIsDefault) setActiveTab('mob-tab-favorites');
         else setActiveTab('mob-tab-playlists');
@@ -10225,6 +10924,26 @@
       textEl.textContent = 'Téléchargement...';
       _updateInProgress = true;
 
+      // ── Electron: utilise electron-updater ──
+      if (_isElectron && window.electronAPI) {
+        try {
+          const result = await window.electronAPI.downloadUpdate();
+          if (result.ok) {
+            textEl.textContent = 'Installation...';
+            // L'événement 'update-downloaded' va déclencher l'install
+          } else {
+            throw new Error(result.error || 'download failed');
+          }
+        } catch(e) {
+          _updateInProgress = false;
+          btn.disabled = false;
+          textEl.textContent = 'Mise à jour';
+          alert('La mise à jour a échoué. Vérifie ta connexion internet.');
+        }
+        return;
+      }
+
+      // ── Browser: ancien système via /api/update ──
       function showUpdateScreen() {
         window.close();
         document.body.innerHTML = `
@@ -10243,7 +10962,6 @@
         textEl.textContent = 'Installation...';
         setTimeout(showUpdateScreen, 500);
       } catch(e) {
-        // Si le serveur a coupé pendant la requête (fetch failed), c'est normal = MAJ en cours
         if (e.message !== 'server-error') {
           setTimeout(showUpdateScreen, 500);
           return;
@@ -10255,8 +10973,34 @@
       }
     }
 
+    // ── Electron: écouter les événements de mise à jour ──
+    if (_isElectron && window.electronAPI) {
+      window.electronAPI.onUpdateAvailable((version) => {
+        const sidebar = document.getElementById('update-sidebar');
+        const textEl = document.querySelector('.update-sidebar-text');
+        if (sidebar) {
+          if (textEl) textEl.textContent = `Mise à jour v${version}`;
+          sidebar.classList.remove('hidden');
+        }
+      });
+      window.electronAPI.onUpdateProgress((percent) => {
+        const textEl = document.querySelector('.update-sidebar-text');
+        if (textEl) textEl.textContent = `Téléchargement ${Math.round(percent)}%`;
+      });
+      window.electronAPI.onUpdateDownloaded(() => {
+        const textEl = document.querySelector('.update-sidebar-text');
+        if (textEl) textEl.textContent = 'Redémarrer pour installer';
+        const btn = document.getElementById('update-sidebar-btn');
+        if (btn) {
+          btn.disabled = false;
+          btn.onclick = () => window.electronAPI.installUpdate();
+        }
+      });
+    }
+
     // ── Shutdown on tab close (avec délai pour permettre le reload) ──
-    if (!_isCapacitor) {
+    // Electron gère le lifecycle — pas de shutdown via pagehide
+    if (!_isCapacitor && !_isElectron) {
       clomFetch('/api/cancel-shutdown', { method: 'POST' });  // annule un shutdown en cours si reload
       window.addEventListener('pagehide', () => {
         if (_updateInProgress) return;  // pas de shutdown pendant une MAJ

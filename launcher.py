@@ -89,8 +89,9 @@ if __name__ == "__main__":
     # Configurer le pare-feu Windows au premier lancement
     ensure_firewall_rule()
 
-    # Ouvrir le navigateur dans un thread séparé
-    threading.Thread(target=open_browser, daemon=True).start()
+    # Ouvrir le navigateur sauf si lancé par Electron (--no-browser)
+    if "--no-browser" not in sys.argv:
+        threading.Thread(target=open_browser, daemon=True).start()
 
     # Lancer uvicorn — écoute sur 0.0.0.0 pour accès LAN
     from main import app

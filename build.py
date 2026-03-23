@@ -1,31 +1,64 @@
 """
-Script de build — Crée le dossier distribuable + installeur Clom.
+Script de build — Crée le serveur Python packagé pour Electron.
 Usage: python build.py
 """
 import subprocess
 import shutil
 import sys
+import zipfile
+import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).parent
-DIST = ROOT / "dist" / "Clom"
+DIST = ROOT / "dist" / "python-server"
 
-# Chemins des outils externes (à adapter si besoin)
-FFMPEG_DIR = Path(r"C:\Users\tomvi\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.0.1-full_build\bin")
+# URL ffmpeg essentials (gyan.dev) — ~100 Mo au lieu de 400 Mo pour full
+FFMPEG_ESSENTIALS_URL = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
+FFMPEG_CACHE = ROOT / "dist" / "ffmpeg-essentials.zip"
+
 NODE_EXE = Path(r"C:\jeu + application\utilitaire\programation\node.exe")
 
+
+def download_ffmpeg_essentials():
+    """Télécharge ffmpeg essentials si pas déjà en cache."""
+    if FFMPEG_CACHE.exists():
+        print(f"  ffmpeg essentials déjà en cache ({FFMPEG_CACHE.stat().st_size // 1024 // 1024} Mo)")
+        return FFMPEG_CACHE
+
+    print(f"  Téléchargement ffmpeg essentials...")
+    FFMPEG_CACHE.parent.mkdir(parents=True, exist_ok=True)
+    urllib.request.urlretrieve(FFMPEG_ESSENTIALS_URL, FFMPEG_CACHE)
+    print(f"  Téléchargé ({FFMPEG_CACHE.stat().st_size // 1024 // 1024} Mo)")
+    return FFMPEG_CACHE
+
+
+def extract_ffmpeg_exe(zip_path, dest_dir):
+    """Extrait uniquement ffmpeg.exe du zip (pas ffprobe, pas ffplay)."""
+    with zipfile.ZipFile(zip_path, 'r') as z:
+        for member in z.namelist():
+            if member.endswith('/ffmpeg.exe'):
+                # Extraire dans un dossier temp puis déplacer
+                data = z.read(member)
+                out = dest_dir / "ffmpeg.exe"
+                out.write_bytes(data)
+                print(f"  ffmpeg.exe extrait ({len(data) // 1024 // 1024} Mo)")
+                return
+    print("  ATTENTION: ffmpeg.exe introuvable dans le zip!")
+
+
 def main():
-    print("=== Build Clom ===\n")
+    print("=== Build Clom (serveur Python) ===\n")
 
     # 1. PyInstaller
-    print("[1/5] PyInstaller...")
+    print("[1/4] PyInstaller...")
     subprocess.run([
         sys.executable, "-m", "PyInstaller",
         "--noconfirm",
         "--onedir",
         "--noconsole",
         "--name", "Clom",
-        "--icon", "NONE",  # TODO: ajouter une icône .ico plus tard
+        "--icon", "NONE",
+        "--distpath", str(ROOT / "dist" / "_pyinstaller"),
         "--add-data", "index.html;.",
         "--add-data", "database.py;.",
         "--add-data", "logo.svg;.",
@@ -39,7 +72,16 @@ def main():
         "launcher.py",
     ], check=True)
 
-    # PyInstaller crée dist/Clom/launcher.exe, on renomme
+    # Déplacer le résultat PyInstaller vers dist/python-server/
+    pyinstaller_out = ROOT / "dist" / "_pyinstaller" / "Clom"
+    if DIST.exists():
+        shutil.rmtree(DIST)
+    shutil.move(str(pyinstaller_out), str(DIST))
+    temp_dir = ROOT / "dist" / "_pyinstaller"
+    if temp_dir.exists():
+        shutil.rmtree(temp_dir)
+
+    # Renommer launcher.exe → Clom.exe
     launcher = DIST / "launcher.exe"
     final_exe = DIST / "Clom.exe"
     if launcher.exists() and not final_exe.exists():
@@ -53,67 +95,47 @@ def main():
             shutil.copy2(src, DIST / name)
             print(f"  {name} copié vers racine")
 
-    # 2. Copier les outils externes dans bin/
-    print("[2/5] Copie des outils externes dans bin/...")
+    # 2. Outils externes dans bin/
+    print("[2/4] Copie des outils externes dans bin/...")
     bin_dir = DIST / "bin"
     bin_dir.mkdir(exist_ok=True)
 
-    # yt-dlp (standalone, pas le lanceur pip du venv)
+    # yt-dlp
     ytdlp_src = ROOT / "bin_standalone" / "yt-dlp.exe"
     if not ytdlp_src.exists():
-        ytdlp_src = ROOT / "venv" / "Scripts" / "yt-dlp.exe"  # fallback
+        ytdlp_src = ROOT / "venv" / "Scripts" / "yt-dlp.exe"
     if ytdlp_src.exists():
         shutil.copy2(ytdlp_src, bin_dir / "yt-dlp.exe")
-        print(f"  yt-dlp.exe copié ({ytdlp_src.stat().st_size // 1024 // 1024} Mo) depuis {ytdlp_src}")
+        print(f"  yt-dlp.exe copié ({ytdlp_src.stat().st_size // 1024 // 1024} Mo)")
 
-    # ffmpeg + ffprobe
-    for name in ("ffmpeg.exe", "ffprobe.exe"):
-        src = FFMPEG_DIR / name
-        if src.exists():
-            shutil.copy2(src, bin_dir / name)
-            print(f"  {name} copié ({src.stat().st_size // 1024 // 1024} Mo)")
-        else:
-            print(f"  ATTENTION: {name} introuvable à {src}")
+    # ffmpeg essentials (téléchargé automatiquement, sans ffprobe)
+    print("  ffmpeg essentials...")
+    zip_path = download_ffmpeg_essentials()
+    extract_ffmpeg_exe(zip_path, bin_dir)
 
     # node.exe
     if NODE_EXE.exists():
         shutil.copy2(NODE_EXE, bin_dir / "node.exe")
-        print(f"  node.exe copié")
+        print(f"  node.exe copié ({NODE_EXE.stat().st_size // 1024 // 1024} Mo)")
 
-    # 3. Créer les dossiers vides + nettoyer les fichiers perso
-    print("[3/5] Nettoyage et préparation...")
+    # 3. Nettoyage
+    print("[3/4] Nettoyage et préparation...")
     (DIST / "downloads").mkdir(exist_ok=True)
     (DIST / "covers").mkdir(exist_ok=True)
 
-    # Supprimer les fichiers qui ne doivent pas être distribués
     for f in ("music.db", "Clom.log", "cookies.txt"):
         p = DIST / f
         if p.exists():
             p.unlink()
             print(f"  {f} supprimé du build")
 
-    # 4. Créer l'installeur Inno Setup
-    print("[4/5] Création de l'installeur...")
-    iss_path = ROOT / "installer.iss"
-    if not iss_path.exists():
-        print("  ATTENTION: installer.iss introuvable, installeur non créé")
-    else:
-        iscc = Path(r"C:\Users\tomvi\AppData\Local\Programs\Inno Setup 6\ISCC.exe")
-        if not iscc.exists():
-            print("  ATTENTION: Inno Setup non installé, installeur non créé")
-            print("  Installe-le via: winget install JRSoftware.InnoSetup")
-        else:
-            subprocess.run([str(iscc), str(iss_path)], check=True)
-            print("  Installeur créé !")
-
-    # 5. Résumé
+    # 4. Résumé
     total_size = sum(f.stat().st_size for f in DIST.rglob("*") if f.is_file())
-    print(f"\n[5/5] Build terminé !")
+    print(f"\n[4/4] Build serveur Python terminé !")
     print(f"  Dossier : {DIST}")
     print(f"  Taille totale : {total_size // 1024 // 1024} Mo")
-    installer = ROOT / "dist" / "Clom-setup.exe"
-    if installer.exists():
-        print(f"  Installeur : {installer} ({installer.stat().st_size // 1024 // 1024} Mo)")
+    print(f"\n  Pour construire l'installeur Electron :")
+    print(f"  npx electron-builder --win")
 
 
 if __name__ == "__main__":

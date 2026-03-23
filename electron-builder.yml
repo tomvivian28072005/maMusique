@@ -1,0 +1,41 @@
+appId: com.tomvivian.clom
+productName: Clom
+copyright: Copyright © 2026 Tom Vivian
+
+files:
+  - electron/**/*
+
+extraResources:
+  - from: dist/python-server/
+    to: python-server
+    filter:
+      - "**/*"
+
+forceCodeSigning: false
+afterPack: ./afterPack.js
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: logo.ico
+  signAndEditExecutable: false
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  allowElevation: true
+  installerIcon: logo.ico
+  uninstallerIcon: logo.ico
+  installerHeaderIcon: logo.ico
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Clom
+  deleteAppDataOnUninstall: false
+  include: installer-hooks.nsh
+
+publish:
+  provider: github
+  owner: tomvivian28072005
+  repo: maMusique
