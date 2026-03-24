@@ -197,6 +197,58 @@ public class FolderPickerPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void downloadFile(PluginCall call) {
+        String url = call.getString("url");
+        String destPath = call.getString("path");
+        if (url == null || destPath == null) { call.reject("Missing url or path"); return; }
+
+        // Run on background thread
+        new Thread(() -> {
+            try {
+                java.net.URL fileUrl = new java.net.URL(url);
+                java.net.HttpURLConnection conn = (java.net.HttpURLConnection) fileUrl.openConnection();
+                conn.setInstanceFollowRedirects(true);
+                conn.setRequestProperty("User-Agent", "Clom-App");
+                conn.connect();
+
+                // Follow redirects manually for HTTPS→HTTPS
+                int code = conn.getResponseCode();
+                while (code == 301 || code == 302 || code == 303 || code == 307) {
+                    String loc = conn.getHeaderField("Location");
+                    conn.disconnect();
+                    conn = (java.net.HttpURLConnection) new java.net.URL(loc).openConnection();
+                    conn.setInstanceFollowRedirects(true);
+                    conn.setRequestProperty("User-Agent", "Clom-App");
+                    conn.connect();
+                    code = conn.getResponseCode();
+                }
+
+                if (code != 200) { call.reject("HTTP " + code); return; }
+
+                java.io.File dest = new java.io.File(destPath);
+                dest.getParentFile().mkdirs();
+
+                InputStream is = conn.getInputStream();
+                java.io.FileOutputStream fos = new java.io.FileOutputStream(dest);
+                byte[] buf = new byte[8192];
+                int len;
+                while ((len = is.read(buf)) != -1) {
+                    fos.write(buf, 0, len);
+                }
+                fos.close();
+                is.close();
+                conn.disconnect();
+
+                JSObject ret = new JSObject();
+                ret.put("path", dest.getAbsolutePath());
+                call.resolve(ret);
+            } catch (Exception e) {
+                call.reject("Download failed: " + e.getMessage());
+            }
+        }).start();
+    }
+
+    @PluginMethod
     public void installApk(PluginCall call) {
         String filePath = call.getString("path");
         if (filePath == null) { call.reject("Missing path"); return; }
