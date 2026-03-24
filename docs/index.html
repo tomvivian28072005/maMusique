@@ -710,46 +710,391 @@
   <!-- PAGE : POUR DEV                        -->
   <!-- ══════════════════════════════════════ -->
   <div class="page" id="page-dev">
+
+    <!-- Intro + Stack -->
     <section>
-      <h2 class="section-title">Pour les developpeurs</h2>
-      <p class="section-sub">Code source ouvert sous licence AGPL v3.</p>
+      <h2 class="section-title">Documentation technique</h2>
+      <p class="section-sub">Version mobile (Android) &mdash; AGPL v3 &mdash; <a href="https://github.com/tomvivian28072005/maMusique" style="color:#2563eb;">Code source</a></p>
 
       <div class="dev-box">
-        <h3>Lancer en local</h3>
-        <pre><span class="comment"># Clone le repo</span>
-git clone https://github.com/tomvivian28072005/maMusique.git
-cd maMusique
-
-<span class="comment"># Installe les dependances</span>
-python -m venv venv
-./venv/Scripts/pip install -r requirements.txt
-
-<span class="comment"># Lance le serveur</span>
-./venv/Scripts/python -m uvicorn main:app --host 127.0.0.1 --port 9000 --reload</pre>
-
+        <h3>Vue d'ensemble</h3>
         <p>
-          <strong>Stack :</strong> API <strong>FastAPI</strong> (Python) + frontend <strong>vanilla JS</strong> (un seul index.html).
-          Base <strong>SQLite</strong> via SQLAlchemy. Telechargement via <strong>yt-dlp + ffmpeg</strong>.
-          App Android via <strong>Capacitor</strong> avec SQLite local.
+          Clom mobile est une app Android construite avec <strong>Capacitor</strong>. Le frontend est un seul fichier
+          <code>index.html</code> (~11 000 lignes) charge dans une WebView. Cote natif, <strong>4 plugins Java</strong>
+          gerent le telechargement YouTube, la lecture en arriere-plan, les fichiers locaux et les mises a jour.
+          La base de donnees locale est <strong>SQLite</strong> via <code>@capacitor-community/sqlite</code>.
         </p>
-
-        <div class="dev-stack">
-          <span>Python</span>
-          <span>FastAPI</span>
-          <span>SQLite</span>
+        <p style="margin-top:10px;">
+          L'app fonctionne <strong>100% hors ligne</strong>. La synchronisation avec le PC est optionnelle et declenchee
+          manuellement par l'utilisateur.
+        </p>
+        <div class="dev-stack" style="margin-top:14px;">
+          <span>Capacitor 8</span>
           <span>Vanilla JS</span>
-          <span>Tailwind CSS</span>
-          <span>Capacitor</span>
-          <span>yt-dlp</span>
-          <span>ffmpeg</span>
+          <span>Tailwind CSS (CDN)</span>
+          <span>SQLite</span>
+          <span>NewPipe Extractor</span>
+          <span>MediaSession</span>
+          <span>Java (plugins natifs)</span>
         </div>
+      </div>
+    </section>
 
-        <p style="margin-top: 16px;">
-          <a href="https://github.com/tomvivian28072005/maMusique">Code source sur GitHub</a> &middot;
-          <a href="https://github.com/tomvivian28072005/maMusique/blob/main/LICENSE">Licence AGPL v3</a>
+    <!-- Architecture fichiers -->
+    <section style="padding-top:0;">
+      <h2 class="section-title" style="font-size:1.4rem;">Structure des fichiers</h2>
+
+      <div class="dev-box">
+        <pre><span class="comment"># Fichiers web (copies dans www/ avant build)</span>
+index.html          <span class="comment"># SPA complete : HTML + CSS + JS inline</span>
+local-db.js         <span class="comment"># Couche SQLite + moteur de sync</span>
+api-local.js        <span class="comment"># Routeur API local (intercepte les fetch)</span>
+
+<span class="comment"># Plugins natifs Android</span>
+android/app/src/main/java/com/tomvivian/clom/
+  MainActivity.java          <span class="comment"># Enregistre les 3 plugins Capacitor</span>
+  YtExtractorPlugin.java     <span class="comment"># Recherche + telechargement YouTube</span>
+  MusicService.java          <span class="comment"># Service foreground (notification + MediaSession)</span>
+  MusicServicePlugin.java    <span class="comment"># Bridge JS &lt;-&gt; MusicService</span>
+  FolderPickerPlugin.java    <span class="comment"># Fichiers, dossiers, download HTTP, install APK</span>
+
+<span class="comment"># Config</span>
+capacitor.config.json   <span class="comment"># appId, webDir, cleartext HTTP autorise</span>
+AndroidManifest.xml     <span class="comment"># Permissions, services, deep links</span>
+package.json            <span class="comment"># Dependances npm (Capacitor, SQLite, Filesystem)</span></pre>
+      </div>
+    </section>
+
+    <!-- Plugins natifs -->
+    <section style="padding-top:0;">
+      <h2 class="section-title" style="font-size:1.4rem;">Plugins natifs Java</h2>
+
+      <!-- YtExtractor -->
+      <div class="dev-box" style="margin-bottom:16px;">
+        <h3>YtExtractorPlugin &mdash; Telechargement YouTube</h3>
+        <p>
+          Utilise <strong>NewPipe Extractor</strong> (pas l'API YouTube) pour chercher et telecharger de la musique.
+          Tout se passe cote natif Java pour contourner les restrictions CORS de la WebView.
+        </p>
+        <p style="margin-top:8px;"><strong>Methodes exposees au JS :</strong></p>
+        <pre><span>search</span>({ query })
+  → [{ url, title, artist, duration, thumbnailUrl }]   <span class="comment"># 10 premiers resultats</span>
+
+<span>extract</span>({ url })
+  → { audioUrl, title, artist, thumbnailUrl, duration } <span class="comment"># Metadonnees sans telecharger</span>
+
+<span>download</span>({ url })
+  → { filePath, coverPath, title, artist, duration }    <span class="comment"># Telechargement complet</span></pre>
+        <p style="margin-top:8px;"><strong>Pipeline de telechargement :</strong></p>
+        <p>
+          1. Extraction des metadonnees via NewPipe<br>
+          2. Selection du meilleur flux audio (bitrate max)<br>
+          3. Telechargement en <strong>chunks de 2 Mo</strong> avec requetes Range (YouTube coupe la connexion au-dela de ~1 Mo sans Range)<br>
+          4. 3 tentatives par chunk avec backoff exponentiel (1s, 2s, 3s)<br>
+          5. Telechargement + recadrage carre de la miniature → JPEG<br>
+          6. Sauvegarde dans <code>/Clom/downloads/</code> et <code>/Clom/covers/</code>
+        </p>
+        <p style="margin-top:8px;"><strong>Headers usurpes</strong> pour eviter le rate-limiting :</p>
+        <pre>User-Agent: Chrome 131.0.0.0
+Referer: https://www.youtube.com/
+Cookie: CONSENT=YES+cb.20210328</pre>
+      </div>
+
+      <!-- MusicService -->
+      <div class="dev-box" style="margin-bottom:16px;">
+        <h3>MusicService + MusicServicePlugin &mdash; Lecture en arriere-plan</h3>
+        <p>
+          <strong>MusicService.java</strong> est un <em>foreground service</em> Android qui affiche une notification
+          persistante avec les controles play/pause/next/prev et la pochette du morceau en cours.
+        </p>
+        <p style="margin-top:8px;"><strong>Fonctionnement :</strong></p>
+        <p>
+          1. Le JS appelle <code>MusicServicePlugin.start({ title, artist, coverUri })</code><br>
+          2. Le plugin demarre le service foreground avec une notification <code>MediaStyle</code><br>
+          3. Une <strong>MediaSession</strong> est creee (controles ecran verrouille + casques Bluetooth)<br>
+          4. Quand l'utilisateur appuie sur un bouton de la notification → le service envoie un <strong>broadcast</strong><br>
+          5. Le broadcast est capte par <code>MusicServicePlugin</code> qui emet un evenement JS <code>mediaAction</code><br>
+          6. Le frontend JS reagit (<code>audio.play()</code>, <code>playNext()</code>, etc.)
+        </p>
+        <pre><span class="comment"># Flux de controle : notification → service → broadcast → plugin → JS</span>
+MusicServicePlugin.<span>start</span>({ title, artist, coverUri })  <span class="comment"># Demarre</span>
+MusicServicePlugin.<span>update</span>({ title, artist, playState }) <span class="comment"># Met a jour</span>
+MusicServicePlugin.<span>stop</span>()                               <span class="comment"># Arrete</span>
+
+<span class="comment"># Evenement recu dans le JS :</span>
+Capacitor.Plugins.MusicServicePlugin.addListener('<span>mediaAction</span>',
+  ({ action }) => { <span class="comment">// "play", "pause", "next", "prev"</span> }
+);</pre>
+        <p style="margin-top:8px;">
+          Le service ecoute aussi <code>AUDIO_BECOMING_NOISY</code> (casque debranche) et envoie automatiquement "pause".
+        </p>
+      </div>
+
+      <!-- FolderPicker -->
+      <div class="dev-box">
+        <h3>FolderPickerPlugin &mdash; Fichiers et mises a jour</h3>
+        <p>Plugin utilitaire qui gere l'acces aux fichiers locaux, le telechargement HTTP et l'installation d'APK.</p>
+        <pre><span>pickFolder</span>()
+  → { files: [{ name, uri, size }] }  <span class="comment"># Selecteur de dossier, filtre audio uniquement</span>
+
+<span>readFileBase64</span>({ uri })
+  → { base64 }                        <span class="comment"># Lire un fichier en Base64 (import audio)</span>
+
+<span>getClomFolderPath</span>()
+  → { path }                          <span class="comment"># Chemin /Clom/downloads/</span>
+
+<span>downloadFile</span>({ url, path })
+  → { path }                          <span class="comment"># Download HTTP avec suivi de redirections</span>
+
+<span>installApk</span>({ path })
+  → void                              <span class="comment"># Installe un APK via FileProvider + Intent</span></pre>
+        <p style="margin-top:8px;">
+          <code>downloadFile</code> + <code>installApk</code> sont utilises pour le <strong>systeme de mise a jour</strong> :
+          l'app detecte une nouvelle version sur GitHub Releases, telecharge l'APK via <code>downloadFile</code>,
+          puis lance l'installeur systeme via <code>installApk</code>.
         </p>
       </div>
     </section>
+
+    <!-- Couche JavaScript -->
+    <section style="padding-top:0;">
+      <h2 class="section-title" style="font-size:1.4rem;">Couche JavaScript</h2>
+
+      <!-- local-db.js -->
+      <div class="dev-box" style="margin-bottom:16px;">
+        <h3>local-db.js &mdash; Base de donnees locale + sync</h3>
+        <p>Couche d'abstraction SQLite (~950 lignes). Gere toutes les operations CRUD et le moteur de synchronisation.</p>
+
+        <p style="margin-top:12px;"><strong>Schema de la base :</strong></p>
+        <pre><span>tracks</span>       id, title, artist, file_path (UNIQUE), youtube_url, added_at,
+              play_count, volume_coeff, start_time, end_time, cover_path,
+              cover_zoom, cover_offset_x, cover_offset_y, stereo_balance, duration
+
+<span>playlists</span>    id, name, cover_path, cover_zoom, cover_offset_x, cover_offset_y,
+              is_default, position, created_at
+
+<span>playlist_tracks</span>  id, playlist_id, track_id, added_at, UNIQUE(playlist_id, track_id)
+
+<span>change_log</span>   id, device_id, entity_type, entity_id, action, data (JSON), timestamp
+
+<span>sync_devices</span> id (UUID), name, last_sync, created_at
+
+<span>listen_history</span>  id, track_id, listened_at, duration_seconds, device_id</pre>
+
+        <p style="margin-top:12px;"><strong>Fonctions principales :</strong></p>
+        <pre><span class="comment"># Tracks</span>
+localGetTracks(search?, sortBy)     localDeleteTrack(id)
+localUpdateTrack(id, body)          localUploadTrackCover(id, file)
+
+<span class="comment"># Playlists</span>
+localGetPlaylists()                 localCreatePlaylist(name)
+localUpdatePlaylist(id, body)       localDeletePlaylist(id)  <span class="comment"># protege "Coup de coeur"</span>
+localReorderPlaylists(ids)
+
+<span class="comment"># Favoris</span>
+localToggleFavorite(id)             localGetFavorites()
+
+<span class="comment"># Fichiers (Capacitor Filesystem)</span>
+saveLocalFile(path, blob)           readLocalFileAsUrl(path)
+deleteLocalFile(path)               localFileExists(path)</pre>
+
+        <p style="margin-top:12px;"><strong>Change tracking :</strong></p>
+        <p>
+          Chaque operation CRUD insere une entree dans <code>change_log</code> via <code>recordLocalChange()</code>.
+          Ces changements sont envoyes au PC lors de la prochaine synchronisation, puis purges.
+        </p>
+      </div>
+
+      <!-- api-local.js -->
+      <div class="dev-box" style="margin-bottom:16px;">
+        <h3>api-local.js &mdash; Routeur API hors ligne</h3>
+        <p>
+          Intercepte les appels <code>clomFetch()</code> et les redirige vers <code>local-db.js</code> au lieu du serveur PC.
+          Retourne des objets qui imitent l'interface <code>Response</code> de <code>fetch()</code>.
+        </p>
+        <pre><span class="comment"># Endpoints geres localement</span>
+GET    /api/tracks                    → localGetTracks()
+DELETE /api/tracks/:id                → localDeleteTrack()
+PATCH  /api/tracks/:id                → localUpdateTrack()
+POST   /api/tracks/:id/cover          → localUploadTrackCover()
+POST   /api/tracks/:id/toggle-favorite → localToggleFavorite()
+
+GET    /api/playlists                 → localGetPlaylists()
+POST   /api/playlists                 → localCreatePlaylist()
+PATCH  /api/playlists/:id             → localUpdatePlaylist()
+DELETE /api/playlists/:id             → localDeletePlaylist()
+GET    /api/playlists/:id/tracks      → localGetPlaylistTracks()
+POST   /api/playlists/:id/tracks      → localAddTrackToPlaylist()
+
+GET    /api/favorites                 → localGetFavorites()
+
+<span class="comment"># Routes PC-only (redirigees vers le PC si connecte, sinon erreur 501)</span>
+/api/search/youtube    /api/download    /api/search-download    /api/import</pre>
+
+        <p style="margin-top:8px;">
+          <strong>Resolution d'URLs :</strong> les chemins relatifs en base (<code>/downloads/xxx.mp3</code>) sont
+          convertis en URLs Capacitor (<code>file:///data/.../Clom/downloads/xxx.mp3</code>) via
+          <code>Capacitor.convertFileSrc()</code> au moment du query.
+        </p>
+      </div>
+
+      <!-- clomFetch -->
+      <div class="dev-box">
+        <h3>clomFetch() &mdash; Abstraction reseau</h3>
+        <p>Fonction centrale qui decide si un appel API doit etre traite localement ou envoye au PC :</p>
+        <pre>function <span>clomFetch</span>(path, options) {
+  <span class="comment">// Routes qui necessitent le PC (YouTube, download)</span>
+  const needsPC = ['/api/search/youtube', '/api/download', ...];
+
+  if (_isOfflineMode &amp;&amp; _localDbReady) {
+    if (needsPC) {
+      <span class="comment">// Rediriger vers le PC connu (ou erreur)</span>
+      return fetch(pcServer + path, options);
+    }
+    <span class="comment">// Tout le reste est gere en local</span>
+    return handleLocalApi(path, options);
+  }
+}</pre>
+      </div>
+    </section>
+
+    <!-- Synchronisation -->
+    <section style="padding-top:0;">
+      <h2 class="section-title" style="font-size:1.4rem;">Synchronisation PC ↔ Mobile</h2>
+
+      <div class="dev-box" style="margin-bottom:16px;">
+        <h3>Principe</h3>
+        <p>
+          La sync est <strong>bidirectionnelle</strong> et <strong>declenchee par le mobile</strong>.
+          Le mobile scanne le reseau Wi-Fi local, trouve le PC, et demande une sync.
+          Le PC doit accepter la demande.
+        </p>
+        <p style="margin-top:8px;"><strong>Processus en 9 etapes :</strong></p>
+        <pre>1. Recuperer <span>last_sync</span> depuis la base locale
+2. Telecharger les changements du PC  →  GET /api/sync/changes?since=...
+3. Recuperer les changements locaux   →  SELECT * FROM change_log
+4. Envoyer les changements locaux     →  POST /api/sync/apply
+5. Appliquer les changements du PC    →  INSERT/UPDATE/DELETE local
+6. Telecharger les fichiers manquants →  GET /api/sync/tracks/:id/file
+7. Envoyer les fichiers locaux-only   →  POST /api/sync/tracks/:id/upload
+8. Fusionner playlist_tracks          →  Merge des associations
+9. Finaliser                          →  POST /api/sync/complete</pre>
+      </div>
+
+      <div class="dev-box" style="margin-bottom:16px;">
+        <h3>Decouverte du PC</h3>
+        <p>
+          <code>syncScanSubnet()</code> scanne les IPs du sous-reseau local (ex: 192.168.1.1 → 192.168.1.254)
+          en tentant un <code>GET /api/version</code> sur le port 9000. Le premier qui repond est le serveur Clom PC.
+          L'utilisateur peut aussi entrer l'IP manuellement.
+        </p>
+      </div>
+
+      <div class="dev-box" style="margin-bottom:16px;">
+        <h3>Heartbeat</h3>
+        <p>
+          Apres une sync reussie, le mobile envoie un <strong>heartbeat toutes les 30 secondes</strong> au PC
+          (<code>POST /api/devices/register</code> avec device_id, nom, nombre de morceaux).
+          Ca permet au PC de savoir que le mobile est en ligne et d'initier des syncs depuis le PC.
+        </p>
+      </div>
+
+      <div class="dev-box">
+        <h3>Deep links</h3>
+        <p>
+          L'app supporte le scheme <code>clom://sync/192.168.x.x:9000</code>.
+          Quand l'utilisateur scanne un QR code genere par le PC, ca ouvre l'app et lance la sync automatiquement.
+        </p>
+      </div>
+    </section>
+
+    <!-- Mise a jour -->
+    <section style="padding-top:0;">
+      <h2 class="section-title" style="font-size:1.4rem;">Mise a jour automatique</h2>
+
+      <div class="dev-box">
+        <p>Au demarrage, l'app verifie la derniere release sur GitHub :</p>
+        <pre>1. <span>checkMobileUpdate</span>()
+   → GET https://api.github.com/repos/.../releases/latest
+   → Compare version semantique (tuple, pas string)
+
+2. Si nouvelle version : bouton "Mettre a jour" affiche
+
+3. <span>mobInstallUpdate</span>()
+   → FolderPicker.<span>downloadFile</span>({ url: apk_url, path: local_path })
+   → FolderPicker.<span>installApk</span>({ path: local_path })
+   → L'installeur systeme Android prend le relais</pre>
+        <p style="margin-top:8px;">
+          Permission requise : <code>REQUEST_INSTALL_PACKAGES</code> dans le Manifest.
+          Le <code>FileProvider</code> est configure pour partager le fichier APK avec l'installeur systeme.
+        </p>
+      </div>
+    </section>
+
+    <!-- Stockage -->
+    <section style="padding-top:0;">
+      <h2 class="section-title" style="font-size:1.4rem;">Stockage local</h2>
+
+      <div class="dev-box">
+        <pre><span class="comment"># Emplacement sur le telephone</span>
+/data/user/0/com.tomvivian.clom/files/
+└── Clom/
+    ├── downloads/          <span class="comment"># Fichiers audio (.m4a, .mp3)</span>
+    │   ├── Song Title_1234567890.m4a
+    │   └── Another Track_9876543210.mp3
+    └── covers/             <span class="comment"># Pochettes (.jpg)</span>
+        ├── track_1.jpg
+        └── playlist_2.jpg
+
+<span class="comment"># Base de donnees SQLite</span>
+clom_music.db             <span class="comment"># Geree par @capacitor-community/sqlite</span></pre>
+        <p style="margin-top:8px;">
+          Les chemins en base sont relatifs (<code>/downloads/xxx.mp3</code>) et convertis en URLs absolues
+          par <code>Capacitor.convertFileSrc()</code> au moment de l'affichage. Ca permet de deplacer les fichiers
+          sans casser les references.
+        </p>
+      </div>
+    </section>
+
+    <!-- Permissions -->
+    <section style="padding-top:0;">
+      <h2 class="section-title" style="font-size:1.4rem;">Permissions Android</h2>
+
+      <div class="dev-box">
+        <pre><span>INTERNET</span>                          <span class="comment"># Acces reseau (YouTube, sync, GitHub)</span>
+<span>ACCESS_NETWORK_STATE</span>               <span class="comment"># Detecter l'etat du reseau</span>
+<span>FOREGROUND_SERVICE</span>                 <span class="comment"># Service de lecture persistant</span>
+<span>FOREGROUND_SERVICE_MEDIA_PLAYBACK</span>  <span class="comment"># Type specifique (Android 14+)</span>
+<span>WAKE_LOCK</span>                          <span class="comment"># Maintenir le CPU actif pendant la lecture</span>
+<span>REQUEST_INSTALL_PACKAGES</span>           <span class="comment"># Installer les APK de mise a jour</span></pre>
+      </div>
+    </section>
+
+    <!-- Build -->
+    <section style="padding-top:0;">
+      <h2 class="section-title" style="font-size:1.4rem;">Build</h2>
+
+      <div class="dev-box">
+        <pre><span class="comment"># 1. Copier les fichiers web dans www/</span>
+cp index.html local-db.js api-local.js www/
+
+<span class="comment"># 2. Synchroniser avec le projet Android</span>
+npx cap sync android
+
+<span class="comment"># 3. Build APK debug</span>
+cd android
+JAVA_HOME="C:/Program Files/Android/Android Studio/jbr" ./gradlew assembleDebug
+
+<span class="comment"># L'APK est dans :</span>
+<span class="comment"># android/app/build/outputs/apk/debug/app-debug.apk</span></pre>
+        <p style="margin-top:8px;">
+          <strong>Prerequis :</strong> Android Studio (SDK + JDK), Node.js, npm.<br>
+          <strong>Attention :</strong> toujours copier les fichiers web dans <code>www/</code> avant <code>cap sync</code>,
+          sinon l'APK contiendra des fichiers obsoletes.
+        </p>
+      </div>
+    </section>
+
   </div>
 
   <!-- ══════════════════════════════════════ -->
