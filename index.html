@@ -91,6 +91,7 @@
     body.theme-light .active\:bg-white\/10:active { background: rgba(0,0,0,0.1) !important; }
     body.theme-light .border-white\/5 { border-color: rgba(0,0,0,0.08) !important; }
     body.theme-light input, body.theme-light textarea { background: rgba(0,0,0,0.05) !important; color: #111 !important; }
+    body.theme-light .bg-gray-900 { background: #f0f0f2 !important; }
     body.theme-light .eq-panel { background: rgba(255,255,255,0.95) !important; }
     body.theme-amoled { --bg-color: #000; --sidebar-bg: rgba(0,0,0,0.95); --player-bg: rgba(0,0,0,0.95); }
     body.theme-amoled .bg-\[\#0a0a0f\], body.theme-amoled .bg-\[\#050508\] { background: #000 !important; }
@@ -186,6 +187,10 @@
     .text-brand-400,
     .text-brand-500 {
       color: var(--accent) !important;
+    }
+
+    .bg-neon-purple {
+      background-color: var(--accent) !important;
     }
 
     .hover\:text-neon-purple:hover {
@@ -2383,7 +2388,7 @@
     // ── Capacitor (mobile) ────────────────────────────────
     const _isCapacitor = typeof window.Capacitor !== 'undefined';
     const _isOfflineMode = _isCapacitor; // mobile = offline (DB locale)
-    const MOBILE_APP_VERSION = '0.1.15';
+    const MOBILE_APP_VERSION = '0.1.16';
     let API_BASE = '';
     let _localDbReady = false;
 
@@ -3037,7 +3042,7 @@
       document.getElementById('playlist-cover-offset-y').value = 0.0;
       // Hide delete button for new playlists
       const delBtn = document.getElementById('playlist-modal-delete-btn');
-      if (delBtn) delBtn.style.display = 'none';
+      if (delBtn) delBtn.classList.add('hidden');
       showModal('playlist-modal');
       setupPlaylistCoverDragAndDrop();
       if (window.innerWidth >= 768) document.getElementById('playlist-modal-name').focus();
@@ -3088,7 +3093,7 @@
       const delBtn = document.getElementById('playlist-modal-delete-btn');
       if (delBtn) {
         const isDefault = pl && pl.is_default;
-        delBtn.style.display = (id && !isDefault) ? '' : 'none';
+        delBtn.classList.toggle('hidden', !(id && !isDefault));
       }
       showModal('playlist-modal');
       if (window.innerWidth >= 768) document.getElementById('playlist-modal-name').focus();
