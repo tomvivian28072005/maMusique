@@ -1,11 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Logo Clom">
-  <rect width="64" height="64" rx="14" fill="#f0f4f8"/>
-  <!-- X shape — two crossed strokes -->
-  <line x1="18" y1="42" x2="38" y2="22" stroke="#42A5F5" stroke-width="7" stroke-linecap="round"/>
-  <line x1="26" y1="22" x2="46" y2="42" stroke="#42A5F5" stroke-width="7" stroke-linecap="round"/>
-  <!-- Arrow tips -->
-  <line x1="38" y1="22" x2="46" y2="22" stroke="#42A5F5" stroke-width="5" stroke-linecap="round"/>
-  <line x1="46" y1="22" x2="46" y2="30" stroke="#42A5F5" stroke-width="5" stroke-linecap="round"/>
-  <line x1="18" y1="34" x2="18" y2="42" stroke="#42A5F5" stroke-width="5" stroke-linecap="round"/>
-  <line x1="18" y1="42" x2="26" y2="42" stroke="#42A5F5" stroke-width="5" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" role="img" aria-label="Logo Clom">
+  <rect x="10" y="10" width="88" height="88" rx="18" fill="#f8f9fa"/>
+  <!-- Chevron gauche (pointe vers la droite) > -->
+  <polyline points="36,68 54,50 36,32" fill="none" stroke="#4FC3F7" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Chevron droit (pointe vers la gauche) < -->
+  <polyline points="72,32 54,50 72,68" fill="none" stroke="#4FC3F7" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
