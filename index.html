@@ -71,28 +71,78 @@
     }
     body.theme-light {
       --bg-color: #f5f5f7; --sidebar-bg: rgba(255,255,255,0.9); --player-bg: rgba(255,255,255,0.95);
-      --card-hover: rgba(37,99,235,0.08);
+      --card-hover: rgba(0,0,0,0.06);
     }
     body.theme-light { color: #111; }
+    /* Text colors */
     body.theme-light .text-white { color: #111 !important; }
+    body.theme-light .text-gray-200 { color: #333 !important; }
     body.theme-light .text-gray-300, body.theme-light .text-gray-400 { color: #555 !important; }
     body.theme-light .text-gray-500 { color: #777 !important; }
     body.theme-light .text-gray-600 { color: #999 !important; }
-    body.theme-light .bg-white\/5, body.theme-light .bg-white\/\[0\.03\] { background: rgba(0,0,0,0.05) !important; }
-    body.theme-light .bg-dark-850 { background: #fff !important; }
-    body.theme-light .border-gray-700, body.theme-light .border-white\/10 { border-color: rgba(0,0,0,0.12) !important; }
-    body.theme-light .bg-\[\#0a0a0f\], body.theme-light .bg-\[\#050508\] { background: #f5f5f7 !important; }
-    body.theme-light .glass { background: rgba(255,255,255,0.85) !important; backdrop-filter: blur(12px); }
-    body.theme-light .bg-white\/10 { background: rgba(0,0,0,0.08) !important; }
-    body.theme-light .bg-gray-800 { background: #e5e5e7 !important; }
     body.theme-light .text-gray-700 { color: #bbb !important; }
+    body.theme-light .text-white\/10, body.theme-light .text-white\/20 { color: rgba(0,0,0,0.15) !important; }
+    body.theme-light .text-white\/95 { color: #111 !important; }
+    body.theme-light .placeholder-gray-500::placeholder { color: #999 !important; }
+    /* Backgrounds */
+    body.theme-light .bg-white\/5, body.theme-light .bg-white\/\[0\.03\] { background: rgba(0,0,0,0.05) !important; }
+    body.theme-light .bg-white\/10 { background: rgba(0,0,0,0.08) !important; }
+    body.theme-light .bg-white\/15 { background: rgba(0,0,0,0.12) !important; }
+    body.theme-light .bg-dark-850 { background: #fff !important; }
+    body.theme-light .bg-gray-700 { background: #d1d5db !important; }
+    body.theme-light .bg-gray-800 { background: #e5e5e7 !important; }
+    body.theme-light .bg-gray-900 { background: #f0f0f2 !important; }
+    body.theme-light .bg-\[\#0a0a0f\], body.theme-light .bg-\[\#050508\] { background: #f5f5f7 !important; }
+    body.theme-light .bg-black\/30 { background: rgba(0,0,0,0.08) !important; }
+    body.theme-light .bg-black\/40 { background: rgba(0,0,0,0.10) !important; }
+    body.theme-light .bg-black\/50 { background: rgba(0,0,0,0.12) !important; }
+    body.theme-light .bg-black\/60 { background: rgba(0,0,0,0.15) !important; }
+    body.theme-light .bg-black\/70 { background: rgba(0,0,0,0.20) !important; }
+    body.theme-light .bg-black\/80 { background: rgba(0,0,0,0.25) !important; }
+    /* Borders */
+    body.theme-light .border-gray-600 { border-color: rgba(0,0,0,0.18) !important; }
+    body.theme-light .border-gray-700, body.theme-light .border-white\/10 { border-color: rgba(0,0,0,0.12) !important; }
+    body.theme-light .border-gray-800 { border-color: rgba(0,0,0,0.08) !important; }
+    body.theme-light .border-white\/5 { border-color: rgba(0,0,0,0.08) !important; }
+    /* Glass / panels */
+    body.theme-light .glass { background: rgba(255,255,255,0.85) !important; backdrop-filter: blur(12px); }
+    body.theme-light .player-glass { background: rgba(255,255,255,0.92) !important; border-top-color: rgba(0,0,0,0.08) !important; }
+    body.theme-light .eq-panel { background: rgba(255,255,255,0.95) !important; }
+    /* Hover/active states */
     body.theme-light .hover\:bg-white\/5:hover { background: rgba(0,0,0,0.05) !important; }
     body.theme-light .hover\:bg-white\/10:hover { background: rgba(0,0,0,0.08) !important; }
     body.theme-light .active\:bg-white\/10:active { background: rgba(0,0,0,0.1) !important; }
-    body.theme-light .border-white\/5 { border-color: rgba(0,0,0,0.08) !important; }
+    body.theme-light .hover\:bg-gray-700:hover { background: #d1d5db !important; }
+    body.theme-light .hover\:bg-gray-800:hover { background: #e5e5e7 !important; }
+    body.theme-light .hover\:bg-gray-600:hover { background: #c5c8cc !important; }
+    body.theme-light .active\:bg-gray-700:active { background: #c5c8cc !important; }
+    /* Inputs */
     body.theme-light input, body.theme-light textarea { background: rgba(0,0,0,0.05) !important; color: #111 !important; }
-    body.theme-light .bg-gray-900 { background: #f0f0f2 !important; }
-    body.theme-light .eq-panel { background: rgba(255,255,255,0.95) !important; }
+    body.theme-light input[type="range"]::-webkit-slider-runnable-track { background: rgba(0,0,0,0.15) !important; }
+    body.theme-light input[type="range"]::-moz-range-track { background: rgba(0,0,0,0.15) !important; }
+    body.theme-light input[type="range"]::-webkit-slider-thumb { background: #555 !important; }
+    body.theme-light input[type="range"]::-moz-range-thumb { background: #555 !important; }
+    /* Dropdowns & menus */
+    body.theme-light .track-menu-dropdown { background: #fff !important; border-color: rgba(0,0,0,0.12) !important; box-shadow: 0 10px 25px rgba(0,0,0,0.15) !important; }
+    body.theme-light .track-menu-dropdown button { color: #333 !important; }
+    body.theme-light .track-menu-dropdown button:hover { background: rgba(0,0,0,0.06) !important; color: #111 !important; }
+    body.theme-light .track-menu-dropdown .menu-delete:hover { color: #dc2626 !important; }
+    /* Sidebar items */
+    body.theme-light .sidebar-item:hover { background: rgba(0,0,0,0.06) !important; }
+    body.theme-light .sidebar-item.active { background: rgba(0,0,0,0.08) !important; }
+    /* Playlist card */
+    body.theme-light .playlist-card:hover { background: rgba(0,0,0,0.06) !important; }
+    /* Onboarding */
+    body.theme-light .onboarding-card { background: #fff !important; border-color: rgba(0,0,0,0.1) !important; }
+    body.theme-light .onboarding-title { color: #111 !important; }
+    body.theme-light .onboarding-text { color: #555 !important; }
+    body.theme-light .onboarding-text strong { color: #222 !important; }
+    body.theme-light .onboarding-dot { background: #d1d5db !important; }
+    body.theme-light .onboarding-btn-skip { color: #999 !important; }
+    /* Tooltip */
+    body.theme-light .next-track-tooltip { background: rgba(255,255,255,0.95) !important; color: #111 !important; border-color: rgba(0,0,0,0.1) !important; }
+    /* Shadows — lighter in light mode */
+    body.theme-light .shadow-2xl { box-shadow: 0 10px 40px rgba(0,0,0,0.12) !important; }
     body.theme-amoled { --bg-color: #000; --sidebar-bg: rgba(0,0,0,0.95); --player-bg: rgba(0,0,0,0.95); }
     body.theme-amoled .bg-\[\#0a0a0f\], body.theme-amoled .bg-\[\#050508\] { background: #000 !important; }
     body.theme-amoled .bg-white\/5 { background: rgba(255,255,255,0.03) !important; }
@@ -2388,7 +2438,7 @@
     // ── Capacitor (mobile) ────────────────────────────────
     const _isCapacitor = typeof window.Capacitor !== 'undefined';
     const _isOfflineMode = _isCapacitor; // mobile = offline (DB locale)
-    const MOBILE_APP_VERSION = '0.1.16';
+    const MOBILE_APP_VERSION = '0.1.17';
     let API_BASE = '';
     let _localDbReady = false;
 
@@ -10034,11 +10084,18 @@
       // Render accent options
       const accentContainer = document.getElementById('accent-options');
       if (accentContainer) {
+        const isCustom = !ACCENT_COLORS.some(c => c.value === currentAccent);
         accentContainer.innerHTML = ACCENT_COLORS.map(c => `
           <button onclick="applyTheme(currentTheme, '${c.value}'); mobOpenThemeSettings();"
             class="w-10 h-10 rounded-full border-2 transition ${c.value === currentAccent ? 'border-white scale-110' : 'border-transparent'}"
             style="background: ${c.value};" title="${c.name}"></button>
-        `).join('');
+        `).join('') + `
+          <label class="w-10 h-10 rounded-full border-2 transition cursor-pointer flex items-center justify-center ${isCustom ? 'border-white scale-110' : 'border-transparent'}"
+            style="background: ${isCustom ? currentAccent : 'conic-gradient(red,yellow,lime,aqua,blue,magenta,red)'};" title="Personnaliser">
+            <input type="color" value="${currentAccent}" class="sr-only"
+              onchange="applyTheme(currentTheme, this.value); mobOpenThemeSettings();">
+            ${isCustom ? '' : '<svg class="w-4 h-4 text-white drop-shadow" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>'}
+          </label>`;
       }
     }
 
