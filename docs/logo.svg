@@ -5,6 +5,7 @@
       <stop offset="100%" stop-color="#1e3a8a"/>
     </linearGradient>
   </defs>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#mm-grad)"/>
   <!-- T haut-gauche -->
   <rect x="10" y="12" width="22" height="4.5" rx="2" fill="#fff"/>
   <rect x="18.75" y="12" width="4.5" height="22" rx="2" fill="#fff"/>

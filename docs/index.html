@@ -387,6 +387,46 @@
     footer a { color: #2563eb; text-decoration: none; }
     footer a:hover { text-decoration: underline; }
 
+    /* ── Stats ── */
+    .stats-box {
+      padding: 32px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+    .stats-total {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+    .stats-number {
+      font-size: 2.8rem;
+      font-weight: 800;
+      color: #fff;
+      letter-spacing: -0.02em;
+    }
+    .stats-label {
+      font-size: 1rem;
+      color: #64748b;
+      font-weight: 400;
+    }
+    .stats-chart-wrap {
+      position: relative;
+      width: 100%;
+    }
+    #dlChart {
+      width: 100%;
+      height: 200px;
+      border-radius: 10px;
+    }
+    .stats-empty {
+      text-align: center;
+      color: #475569;
+      font-size: 0.85rem;
+      margin-top: 12px;
+    }
+
     /* ── Download counter ── */
     .download-counter {
       display: inline-flex;
@@ -601,6 +641,23 @@ python -m venv venv
     </div>
   </section>
 
+  <!-- ── STATISTIQUES ── -->
+  <section>
+    <h2 class="section-title">Telechargements</h2>
+    <p class="section-sub">Nombre total de telechargements depuis GitHub.</p>
+
+    <div class="stats-box">
+      <div class="stats-total">
+        <span class="stats-number" id="statsTotal">—</span>
+        <span class="stats-label">telechargements au total</span>
+      </div>
+      <div class="stats-chart-wrap">
+        <canvas id="dlChart" width="800" height="260"></canvas>
+        <p class="stats-empty" id="statsEmpty" style="display:none;">Les donnees apparaitront apres quelques jours.</p>
+      </div>
+    </div>
+  </section>
+
   <!-- ── DEFENDER WARNING ── -->
   <section style="padding-top: 0;">
     <div class="warning-box">
@@ -637,6 +694,7 @@ python -m venv venv
   </footer>
 
   <script>
+    // ── Total téléchargements (temps réel depuis GitHub API) ──
     fetch('https://api.github.com/repos/tomvivian28072005/maMusique/releases')
       .then(r => r.json())
       .then(releases => {
@@ -644,12 +702,99 @@ python -m venv venv
         for (const r of releases) {
           for (const a of r.assets || []) total += a.download_count;
         }
-        if (total > 0) {
-          document.getElementById('dlCount').textContent = total.toLocaleString('fr-FR');
-          document.getElementById('dlCounter').style.display = 'inline-flex';
-        }
+        document.getElementById('dlCount').textContent = total.toLocaleString('fr-FR');
+        document.getElementById('dlCounter').style.display = 'inline-flex';
+        document.getElementById('statsTotal').textContent = total.toLocaleString('fr-FR');
       })
       .catch(() => {});
+
+    // ── Graphique par jour (depuis downloads.json mis à jour par GitHub Action) ──
+    fetch('downloads.json')
+      .then(r => r.json())
+      .then(data => {
+        if (!data || data.length < 2) {
+          document.getElementById('statsEmpty').style.display = 'block';
+          document.getElementById('dlChart').style.display = 'none';
+          return;
+        }
+
+        // Calcul des téléchargements par jour (différence entre jours consécutifs)
+        const daily = [];
+        for (let i = 1; i < data.length; i++) {
+          daily.push({
+            date: data[i].date,
+            count: Math.max(0, data[i].count - data[i-1].count)
+          });
+        }
+        if (daily.length === 0) return;
+
+        const canvas = document.getElementById('dlChart');
+        const ctx = canvas.getContext('2d');
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        ctx.scale(dpr, dpr);
+        const W = rect.width, H = rect.height;
+
+        const pad = { top: 20, right: 20, bottom: 36, left: 50 };
+        const cW = W - pad.left - pad.right;
+        const cH = H - pad.top - pad.bottom;
+
+        const maxVal = Math.max(...daily.map(d => d.count), 1);
+        const barW = Math.min(32, (cW / daily.length) * 0.7);
+        const gap = cW / daily.length;
+
+        // Grille horizontale
+        ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 4; i++) {
+          const y = pad.top + cH - (cH * i / 4);
+          ctx.beginPath();
+          ctx.moveTo(pad.left, y);
+          ctx.lineTo(W - pad.right, y);
+          ctx.stroke();
+          ctx.fillStyle = '#475569';
+          ctx.font = '11px Outfit, sans-serif';
+          ctx.textAlign = 'right';
+          ctx.fillText(Math.round(maxVal * i / 4), pad.left - 8, y + 4);
+        }
+
+        // Barres
+        daily.forEach((d, i) => {
+          const x = pad.left + i * gap + (gap - barW) / 2;
+          const h = (d.count / maxVal) * cH;
+          const y = pad.top + cH - h;
+
+          const grad = ctx.createLinearGradient(x, y, x, pad.top + cH);
+          grad.addColorStop(0, '#2563eb');
+          grad.addColorStop(1, 'rgba(37,99,235,0.3)');
+          ctx.fillStyle = grad;
+
+          // Barres arrondies en haut
+          const r = Math.min(barW / 2, 4);
+          ctx.beginPath();
+          ctx.moveTo(x + r, y);
+          ctx.lineTo(x + barW - r, y);
+          ctx.quadraticCurveTo(x + barW, y, x + barW, y + r);
+          ctx.lineTo(x + barW, pad.top + cH);
+          ctx.lineTo(x, pad.top + cH);
+          ctx.lineTo(x, y + r);
+          ctx.quadraticCurveTo(x, y, x + r, y);
+          ctx.fill();
+
+          // Label date
+          ctx.fillStyle = '#475569';
+          ctx.font = '10px Outfit, sans-serif';
+          ctx.textAlign = 'center';
+          const label = d.date.slice(5); // MM-DD
+          ctx.fillText(label, x + barW / 2, pad.top + cH + 18);
+        });
+      })
+      .catch(() => {
+        document.getElementById('statsEmpty').style.display = 'block';
+        document.getElementById('dlChart').style.display = 'none';
+      });
   </script>
 </body>
 </html>

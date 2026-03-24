@@ -1,0 +1,40 @@
+name: Track downloads
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # Tous les jours à 2h du matin UTC
+  workflow_dispatch: {}   # Lancement manuel possible
+
+jobs:
+  track:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch download counts
+        run: |
+          TOTAL=$(curl -s https://api.github.com/repos/tomvivian28072005/maMusique/releases \
+            | jq '[.[].assets[].download_count] | add // 0')
+          TODAY=$(date -u +%Y-%m-%d)
+          FILE=docs/downloads.json
+
+          # Créer le fichier s'il n'existe pas
+          if [ ! -f "$FILE" ]; then
+            echo "[]" > "$FILE"
+          fi
+
+          # Ajouter l'entrée du jour (ou remplacer si déjà présente)
+          jq --arg d "$TODAY" --argjson c "$TOTAL" \
+            'map(select(.date != $d)) + [{"date": $d, "count": $c}] | sort_by(.date)' \
+            "$FILE" > tmp.json && mv tmp.json "$FILE"
+
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/downloads.json
+          git diff --cached --quiet && exit 0
+          git commit -m "Update download stats $(date -u +%Y-%m-%d)"
+          git push
