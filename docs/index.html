@@ -10,23 +10,19 @@
   <meta name="robots" content="index, follow">
   <meta name="google-site-verification" content="w7T0OBzRDfjehgnwQOliipqbW95__otd7pie9o_tPF4">
   <link rel="canonical" href="https://tomvivian28072005.github.io/maMusique/">
-
-  <!-- Open Graph (Facebook, Discord, etc.) -->
   <meta property="og:type" content="website">
   <meta property="og:title" content="Clom — Ta musique, ton player">
   <meta property="og:description" content="Lecteur de musique gratuit et open source. Télécharge, organise, écoute — sur PC et Android. 100% privé.">
   <meta property="og:url" content="https://tomvivian28072005.github.io/maMusique/">
   <meta property="og:site_name" content="Clom">
-
-  <!-- Twitter Card -->
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="Clom — Ta musique, ton player">
   <meta name="twitter:description" content="Lecteur de musique gratuit et open source. Télécharge, organise, écoute — sur PC et Android.">
-
   <link rel="icon" type="image/svg+xml" href="logo.svg">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
 
     body {
       font-family: 'Outfit', sans-serif;
@@ -34,6 +30,91 @@
       color: #e2e8f0;
       min-height: 100vh;
       overflow-x: hidden;
+    }
+
+    /* ── Header ── */
+    .site-header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      background: rgba(5,5,8,0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      transition: transform 0.3s;
+    }
+    .site-header.hidden { transform: translateY(-100%); }
+
+    .header-inner {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 0 24px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .header-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: #fff;
+      font-weight: 700;
+      font-size: 1.1rem;
+    }
+    .header-brand img { width: 28px; height: 28px; border-radius: 6px; }
+
+    .header-nav {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .header-nav a {
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: #94a3b8;
+      text-decoration: none;
+      transition: color 0.15s, background 0.15s;
+    }
+    .header-nav a:hover { color: #fff; background: rgba(255,255,255,0.06); }
+    .header-nav a.active { color: #fff; background: rgba(37,99,235,0.15); }
+
+    /* Mobile menu */
+    .menu-toggle {
+      display: none;
+      background: none; border: none; color: #94a3b8; cursor: pointer; padding: 4px;
+    }
+
+    /* ── Page sections ── */
+    .page {
+      display: none;
+      min-height: calc(100vh - 56px);
+      padding-top: 56px;
+    }
+    .page.active { display: block; }
+
+    section {
+      padding: 60px 24px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .section-title {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 8px;
+      letter-spacing: -0.02em;
+    }
+
+    .section-sub {
+      font-size: 0.95rem;
+      color: #64748b;
+      margin-bottom: 40px;
     }
 
     /* ── Hero ── */
@@ -44,7 +125,7 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 60px 24px;
+      padding: 80px 24px 60px;
       text-align: center;
     }
 
@@ -53,109 +134,62 @@
       position: absolute;
       inset: 0;
       background:
-        radial-gradient(ellipse at 50% 0%, rgba(37, 99, 235, 0.15) 0%, transparent 50%),
-        radial-gradient(ellipse at 20% 80%, rgba(37, 99, 235, 0.06) 0%, transparent 40%),
-        radial-gradient(ellipse at 80% 60%, rgba(14, 165, 233, 0.04) 0%, transparent 40%);
+        radial-gradient(ellipse at 50% 0%, rgba(37,99,235,0.15) 0%, transparent 50%),
+        radial-gradient(ellipse at 20% 80%, rgba(37,99,235,0.06) 0%, transparent 40%),
+        radial-gradient(ellipse at 80% 60%, rgba(14,165,233,0.04) 0%, transparent 40%);
       pointer-events: none;
     }
 
     .hero-content { position: relative; z-index: 1; max-width: 680px; }
 
     .logo {
-      width: 88px; height: 88px;
-      margin-bottom: 32px;
-      filter: drop-shadow(0 8px 24px rgba(37, 99, 235, 0.4));
+      width: 80px; height: 80px;
+      margin-bottom: 28px;
+      border-radius: 18px;
+      filter: drop-shadow(0 8px 24px rgba(37,99,235,0.4));
     }
 
-    h1 {
-      font-size: 4rem;
+    .hero h1 {
+      font-size: 3.6rem;
       font-weight: 800;
       color: #fff;
       letter-spacing: -0.03em;
       line-height: 1;
-      margin-bottom: 16px;
+      margin-bottom: 14px;
     }
 
     .tagline {
-      font-size: 1.2rem;
+      font-size: 1.15rem;
       color: #94a3b8;
       font-weight: 300;
-      margin-bottom: 20px;
+      margin-bottom: 16px;
       line-height: 1.6;
     }
-
     .tagline strong { color: #e2e8f0; font-weight: 500; }
 
     .hero-desc {
-      font-size: 0.95rem;
+      font-size: 0.9rem;
       color: #64748b;
       line-height: 1.7;
-      margin-bottom: 40px;
-      max-width: 540px;
+      margin-bottom: 36px;
+      max-width: 520px;
       margin-left: auto;
       margin-right: auto;
     }
-
-    .hero-btns {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 16px;
-      margin-bottom: 48px;
-    }
-
-    .btn-primary {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      padding: 16px 36px;
-      border-radius: 14px;
-      font-family: 'Outfit', sans-serif;
-      font-size: 1.05rem;
-      font-weight: 600;
-      text-decoration: none;
-      background: linear-gradient(135deg, #2563eb, #1d4ed8);
-      color: #fff;
-      box-shadow: 0 8px 32px rgba(37, 99, 235, 0.3);
-      transition: transform 0.15s, box-shadow 0.15s;
-      border: none;
-      cursor: pointer;
-      width: 100%;
-      max-width: 340px;
-      justify-content: center;
-    }
-    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(37, 99, 235, 0.4); }
-    .btn-primary:active { transform: scale(0.98); }
-    .btn-primary svg { width: 20px; height: 20px; flex-shrink: 0; }
-
-    .btn-android {
-      background: linear-gradient(135deg, #16a34a, #15803d);
-      box-shadow: 0 8px 32px rgba(22, 163, 74, 0.25);
-    }
-    .btn-android:hover { box-shadow: 0 12px 40px rgba(22, 163, 74, 0.35); }
-
-    .btn-secondary {
-      font-size: 0.8rem;
-      color: #475569;
-      text-decoration: none;
-      transition: color 0.15s;
-    }
-    .btn-secondary:hover { color: #94a3b8; }
 
     .hero-badge {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 6px 14px;
+      padding: 5px 12px;
       border-radius: 100px;
-      background: rgba(37, 99, 235, 0.1);
-      border: 1px solid rgba(37, 99, 235, 0.2);
-      font-size: 0.75rem;
+      background: rgba(37,99,235,0.1);
+      border: 1px solid rgba(37,99,235,0.2);
+      font-size: 0.72rem;
       color: #60a5fa;
       font-weight: 500;
-      margin-bottom: 24px;
+      margin-bottom: 20px;
     }
-
     .hero-badge .dot {
       width: 6px; height: 6px;
       border-radius: 50%;
@@ -164,279 +198,66 @@
     }
     @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: 0.4 } }
 
-    .scroll-hint {
-      position: absolute;
-      bottom: 32px;
-      left: 50%;
-      transform: translateX(-50%);
-      color: #334155;
-      animation: bounce 2s ease infinite;
-    }
-    @keyframes bounce { 0%,100% { transform: translateX(-50%) translateY(0) } 50% { transform: translateX(-50%) translateY(8px) } }
-
-    /* ── Section ── */
-    section {
-      padding: 80px 24px;
-      max-width: 900px;
-      margin: 0 auto;
-    }
-
-    .section-title {
-      font-size: 2rem;
-      font-weight: 700;
-      color: #fff;
-      text-align: center;
-      margin-bottom: 12px;
-      letter-spacing: -0.02em;
-    }
-
-    .section-sub {
-      font-size: 1rem;
-      color: #64748b;
-      text-align: center;
-      margin-bottom: 56px;
-    }
-
-    /* ── Steps ── */
-    .steps {
+    .hero-btns {
       display: flex;
       flex-direction: column;
-      gap: 32px;
-    }
-
-    .step {
-      display: flex;
-      align-items: flex-start;
-      gap: 20px;
-      padding: 28px;
-      border-radius: 16px;
-      background: rgba(255,255,255,0.02);
-      border: 1px solid rgba(255,255,255,0.05);
-      transition: border-color 0.2s;
-    }
-    .step:hover { border-color: rgba(37,99,235,0.2); }
-
-    .step-num {
-      width: 40px; height: 40px;
-      border-radius: 12px;
-      background: rgba(37,99,235,0.12);
-      color: #2563eb;
-      display: flex;
       align-items: center;
-      justify-content: center;
-      font-size: 1rem;
-      font-weight: 700;
-      flex-shrink: 0;
+      gap: 12px;
+      margin-bottom: 20px;
     }
 
-    .step h3 { font-size: 1.05rem; font-weight: 600; color: #fff; margin-bottom: 4px; }
-    .step p { font-size: 0.9rem; color: #94a3b8; line-height: 1.5; }
-
-    /* ── Features grid ── */
-    .features {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 16px;
-    }
-
-    .feature {
-      padding: 24px;
-      border-radius: 16px;
-      background: rgba(255,255,255,0.02);
-      border: 1px solid rgba(255,255,255,0.05);
-      text-align: center;
-    }
-
-    .feature-icon { font-size: 1.8rem; margin-bottom: 12px; }
-    .feature h3 { font-size: 0.9rem; font-weight: 600; color: #fff; margin-bottom: 4px; }
-    .feature p { font-size: 0.8rem; color: #64748b; line-height: 1.4; }
-
-    /* ── How it works (UX) ── */
-    .ux-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 20px;
-    }
-
-    .ux-card {
-      padding: 24px;
-      border-radius: 16px;
-      background: rgba(255,255,255,0.02);
-      border: 1px solid rgba(255,255,255,0.05);
-    }
-
-    .ux-card h3 {
-      font-size: 0.95rem;
-      font-weight: 600;
-      color: #fff;
-      margin-bottom: 8px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .ux-card p { font-size: 0.85rem; color: #94a3b8; line-height: 1.5; }
-
-    /* ── Dev section ── */
-    .dev-box {
-      padding: 32px;
-      border-radius: 16px;
-      background: rgba(255,255,255,0.02);
-      border: 1px solid rgba(255,255,255,0.05);
-    }
-
-    .dev-box h3 { font-size: 1.1rem; font-weight: 600; color: #fff; margin-bottom: 16px; }
-
-    .dev-box pre {
-      background: rgba(0,0,0,0.4);
-      border-radius: 10px;
-      padding: 16px;
-      font-size: 0.8rem;
-      color: #94a3b8;
-      overflow-x: auto;
-      margin-bottom: 16px;
-      line-height: 1.6;
-      font-family: 'Fira Code', 'Cascadia Code', monospace;
-    }
-
-    .dev-box pre span { color: #60a5fa; }
-    .dev-box pre .comment { color: #475569; }
-
-    .dev-box p { font-size: 0.85rem; color: #94a3b8; line-height: 1.6; }
-    .dev-box a { color: #2563eb; text-decoration: none; }
-    .dev-box a:hover { text-decoration: underline; }
-
-    .dev-stack {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-top: 16px;
-    }
-
-    .dev-stack span {
-      padding: 5px 12px;
-      border-radius: 8px;
-      background: rgba(37,99,235,0.08);
-      border: 1px solid rgba(37,99,235,0.15);
-      font-size: 0.75rem;
-      color: #60a5fa;
-      font-weight: 500;
-    }
-
-    /* ── Defender warning ── */
-    .warning-box {
-      max-width: 520px;
-      margin: 0 auto;
-      padding: 20px 24px;
-      border-radius: 14px;
-      background: rgba(251, 191, 36, 0.04);
-      border: 1px solid rgba(251, 191, 36, 0.12);
-      text-align: left;
-    }
-
-    .warning-box .title {
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: #fbbf24;
-      margin-bottom: 6px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .warning-box p {
-      font-size: 0.8rem;
-      color: #94a3b8;
-      line-height: 1.5;
-    }
-
-    .warning-box strong { color: #e2e8f0; }
-
-    /* ── Contact / Discord ── */
-    .contact-section {
-      text-align: center;
-    }
-
-    .discord-btn {
+    .btn-primary {
       display: inline-flex;
       align-items: center;
       gap: 10px;
       padding: 14px 32px;
-      border-radius: 14px;
+      border-radius: 12px;
       font-family: 'Outfit', sans-serif;
       font-size: 1rem;
       font-weight: 600;
       text-decoration: none;
-      background: #5865F2;
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
       color: #fff;
-      box-shadow: 0 6px 24px rgba(88, 101, 242, 0.3);
+      box-shadow: 0 6px 24px rgba(37,99,235,0.3);
       transition: transform 0.15s, box-shadow 0.15s;
-    }
-    .discord-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 32px rgba(88, 101, 242, 0.4); }
-    .discord-btn:active { transform: scale(0.98); }
-    .discord-btn svg { width: 22px; height: 22px; }
-
-    /* ── Footer ── */
-    footer {
-      padding: 40px 24px;
-      text-align: center;
-      border-top: 1px solid rgba(255,255,255,0.04);
-    }
-
-    footer p { font-size: 0.8rem; color: #334155; line-height: 1.8; }
-    footer a { color: #2563eb; text-decoration: none; }
-    footer a:hover { text-decoration: underline; }
-
-    /* ── Stats ── */
-    .stats-box {
-      padding: 32px;
-      border-radius: 16px;
-      background: rgba(255,255,255,0.02);
-      border: 1px solid rgba(255,255,255,0.05);
-    }
-    .stats-total {
-      display: flex;
-      align-items: baseline;
-      gap: 12px;
-      margin-bottom: 28px;
-    }
-    .stats-number {
-      font-size: 2.8rem;
-      font-weight: 800;
-      color: #fff;
-      letter-spacing: -0.02em;
-    }
-    .stats-label {
-      font-size: 1rem;
-      color: #64748b;
-      font-weight: 400;
-    }
-    .stats-chart-wrap {
-      position: relative;
+      border: none;
+      cursor: pointer;
       width: 100%;
+      max-width: 320px;
+      justify-content: center;
     }
-    #dlChart {
-      width: 100%;
-      height: 200px;
-      border-radius: 10px;
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 32px rgba(37,99,235,0.4); }
+    .btn-primary:active { transform: scale(0.98); }
+    .btn-primary svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+    .btn-android {
+      background: linear-gradient(135deg, #16a34a, #15803d);
+      box-shadow: 0 6px 24px rgba(22,163,74,0.25);
     }
-    .stats-empty {
-      text-align: center;
+    .btn-android:hover { box-shadow: 0 10px 32px rgba(22,163,74,0.35); }
+
+    .btn-disabled {
+      background: #334155 !important;
+      box-shadow: none !important;
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+    .btn-disabled:hover { transform: none !important; box-shadow: none !important; }
+
+    .btn-hint {
+      font-size: 0.75rem;
       color: #475569;
-      font-size: 0.85rem;
-      margin-top: 12px;
     }
 
-    /* ── Download counter ── */
     .download-counter {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 8px 18px;
+      padding: 6px 14px;
       border-radius: 100px;
       background: rgba(255,255,255,0.04);
       border: 1px solid rgba(255,255,255,0.08);
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       color: #94a3b8;
       font-weight: 500;
       margin-top: 8px;
@@ -444,257 +265,506 @@
     .download-counter svg { color: #60a5fa; }
     .download-counter span { color: #fff; font-weight: 700; }
 
+    /* ── Warning box ── */
+    .warning-box {
+      max-width: 480px;
+      margin: 24px auto 0;
+      padding: 14px 18px;
+      border-radius: 10px;
+      background: rgba(251,191,36,0.04);
+      border: 1px solid rgba(251,191,36,0.12);
+      text-align: left;
+    }
+    .warning-box .wtitle {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #fbbf24;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .warning-box p { font-size: 0.75rem; color: #94a3b8; line-height: 1.4; }
+    .warning-box strong { color: #e2e8f0; }
+
+    /* ── Cards ── */
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+
+    .card {
+      padding: 24px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .card h3 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+    .card p { font-size: 0.85rem; color: #94a3b8; line-height: 1.5; }
+
+    .card-grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin-top: 32px;
+    }
+
+    .mini-card {
+      padding: 18px;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.06);
+      text-align: center;
+    }
+    .mini-card .icon { font-size: 1.5rem; margin-bottom: 8px; }
+    .mini-card h4 { font-size: 0.82rem; font-weight: 600; color: #fff; margin-bottom: 3px; }
+    .mini-card p { font-size: 0.75rem; color: #64748b; line-height: 1.4; }
+
+    /* ── Steps ── */
+    .steps { display: flex; flex-direction: column; gap: 16px; margin-top: 32px; }
+
+    .step {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      padding: 20px;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .step-num {
+      width: 32px; height: 32px;
+      border-radius: 8px;
+      background: rgba(37,99,235,0.12);
+      color: #2563eb;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .step h3 { font-size: 0.9rem; font-weight: 600; color: #fff; margin-bottom: 2px; }
+    .step p { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+
+    /* ── Dev section ── */
+    .dev-box {
+      padding: 28px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .dev-box h3 { font-size: 1rem; font-weight: 600; color: #fff; margin-bottom: 12px; }
+
+    .dev-box pre {
+      background: rgba(0,0,0,0.4);
+      border-radius: 8px;
+      padding: 14px;
+      font-size: 0.78rem;
+      color: #94a3b8;
+      overflow-x: auto;
+      margin-bottom: 14px;
+      line-height: 1.5;
+      font-family: 'Fira Code', 'Cascadia Code', monospace;
+    }
+    .dev-box pre span { color: #60a5fa; }
+    .dev-box pre .comment { color: #475569; }
+    .dev-box p { font-size: 0.85rem; color: #94a3b8; line-height: 1.5; }
+    .dev-box a { color: #2563eb; text-decoration: none; }
+    .dev-box a:hover { text-decoration: underline; }
+
+    .dev-stack {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 14px;
+    }
+    .dev-stack span {
+      padding: 4px 10px;
+      border-radius: 6px;
+      background: rgba(37,99,235,0.08);
+      border: 1px solid rgba(37,99,235,0.15);
+      font-size: 0.72rem;
+      color: #60a5fa;
+      font-weight: 500;
+    }
+
+    /* ── Stats ── */
+    .stats-box {
+      padding: 28px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .stats-total {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+    .stats-number {
+      font-size: 2.4rem;
+      font-weight: 800;
+      color: #fff;
+      letter-spacing: -0.02em;
+    }
+    .stats-label { font-size: 0.9rem; color: #64748b; }
+    .stats-chart-wrap { position: relative; width: 100%; }
+    #dlChart { width: 100%; height: 180px; border-radius: 8px; }
+    .stats-empty { text-align: center; color: #475569; font-size: 0.82rem; margin-top: 10px; }
+
+    /* ── Bug report ── */
+    .bug-section { margin-top: 48px; }
+
+    .discord-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      border-radius: 10px;
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-decoration: none;
+      background: #5865F2;
+      color: #fff;
+      box-shadow: 0 4px 16px rgba(88,101,242,0.3);
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .discord-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(88,101,242,0.4); }
+    .discord-btn svg { width: 18px; height: 18px; }
+
+    .github-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      border-radius: 10px;
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-decoration: none;
+      background: rgba(255,255,255,0.08);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.12);
+      transition: transform 0.15s, background 0.15s;
+    }
+    .github-btn:hover { transform: translateY(-2px); background: rgba(255,255,255,0.12); }
+    .github-btn svg { width: 18px; height: 18px; }
+
+    .bug-btns { display: flex; gap: 12px; flex-wrap: wrap; }
+
+    /* ── Footer ── */
+    footer {
+      padding: 32px 24px;
+      text-align: center;
+      border-top: 1px solid rgba(255,255,255,0.04);
+    }
+    footer p { font-size: 0.75rem; color: #334155; line-height: 1.8; }
+    footer a { color: #475569; text-decoration: none; }
+    footer a:hover { color: #94a3b8; }
+
     /* ── Responsive ── */
     @media (max-width: 640px) {
-      h1 { font-size: 2.8rem; }
-      .tagline { font-size: 1.05rem; }
-      .features { grid-template-columns: 1fr; }
-      .ux-grid { grid-template-columns: 1fr; }
+      .hero h1 { font-size: 2.6rem; }
+      .tagline { font-size: 1rem; }
+      .card-grid { grid-template-columns: 1fr; }
+      .card-grid-3 { grid-template-columns: 1fr 1fr; }
       .step { flex-direction: column; }
-      section { padding: 60px 20px; }
-      .btn-primary { padding: 14px 28px; font-size: 0.95rem; }
+      section { padding: 48px 20px; }
+      .btn-primary { padding: 12px 24px; font-size: 0.9rem; }
+      .header-nav { display: none; }
+      .header-nav.open {
+        display: flex;
+        flex-direction: column;
+        position: absolute;
+        top: 56px; left: 0; right: 0;
+        background: rgba(5,5,8,0.95);
+        backdrop-filter: blur(12px);
+        padding: 12px;
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+      }
+      .menu-toggle { display: block; }
+      .stats-total { flex-direction: column; gap: 2px; }
     }
   </style>
 </head>
 <body>
 
-  <!-- ── HERO ── -->
-  <div class="hero">
-    <div class="hero-content">
-      <div class="hero-badge">
-        <span class="dot"></span>
-        Gratuit &middot; Open source &middot; Sans pub
-      </div>
-
-      <img class="logo" src="logo.svg" alt="Logo Clom" width="88" height="88">
-
-      <h1>Clom</h1>
-      <p class="tagline">
-        Ta musique, <strong>ton player</strong>, tes playlists.<br>
-        Tout reste chez toi. Rien dans le cloud.
-      </p>
-      <p class="hero-desc">
-        Clom est un lecteur de musique personnel et gratuit. Tu installes l'app, tu ajoutes tes morceaux
-        (YouTube, fichiers MP3, import Spotify/Deezer), et tu as ton propre player avec playlists,
-        favoris et covers. Disponible sur PC et Android.
-      </p>
-
-      <div class="hero-btns">
-        <a href="https://github.com/tomvivian28072005/maMusique/releases/download/v0.1.17.3/Clom-setup.exe" class="btn-primary">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 12V6.75l6-1.32v6.48L3 12zm6.41.09l8.59.08V4.5L9.41 5.58v6.51zM3 13l6 .09v6.72l-6-1.31V13zm6.41.25L18 13.2v7.8l-8.59-1.08v-6.67z"/></svg>
-          Telecharger pour Windows
-        </a>
-        <span class="btn-secondary">Windows 10/11 &middot; ~160 Mo</span>
-
-        <a href="https://github.com/tomvivian28072005/maMusique/releases/download/v0.1.17.3/Clom.apk" class="btn-primary btn-android">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.6 9.48l1.84-3.18c.16-.31.04-.69-.27-.85-.31-.16-.69-.04-.85.27l-1.86 3.22c-1.44-.65-3.05-1.01-4.76-1.01s-3.32.36-4.76 1.01L5.09 5.72c-.16-.31-.54-.43-.85-.27-.31.16-.43.54-.27.85L5.81 9.48C2.73 11.06.48 14.09.48 17.65h23.04c0-3.56-2.25-6.59-5.33-8.17zM7 15.25c-.69 0-1.25-.56-1.25-1.25s.56-1.25 1.25-1.25 1.25.56 1.25 1.25-.56 1.25-1.25 1.25zm10 0c-.69 0-1.25-.56-1.25-1.25s.56-1.25 1.25-1.25 1.25.56 1.25 1.25-.56 1.25-1.25 1.25z"/></svg>
-          Telecharger pour Android
-        </a>
-        <span class="btn-secondary">Android 8+ &middot; ~15 Mo &middot; APK</span>
-      </div>
-
-      <div class="download-counter" id="dlCounter" style="display:none;">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v12m0 0l-4-4m4 4l4-4M4 18h16"/></svg>
-        <span id="dlCount"></span> telechargements
-      </div>
+  <!-- ── HEADER ── -->
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="#" class="header-brand" onclick="showPage('accueil');return false">
+        <img src="logo.svg" alt="Clom">
+        Clom
+      </a>
+      <button class="menu-toggle" onclick="document.querySelector('.header-nav').classList.toggle('open')" aria-label="Menu">
+        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+      <nav class="header-nav" id="headerNav">
+        <a href="#" onclick="showPage('accueil');return false" class="active" data-page="accueil">Accueil</a>
+        <a href="#" onclick="showPage('fonctionnement');return false" data-page="fonctionnement">Comment ca marche</a>
+        <a href="#" onclick="showPage('dev');return false" data-page="dev">Pour dev</a>
+        <a href="#" onclick="showPage('suivi');return false" data-page="suivi">Suivi</a>
+      </nav>
     </div>
+  </header>
 
-    <div class="scroll-hint">
-      <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 14l-7 7m0 0l-7-7"/></svg>
+  <!-- ══════════════════════════════════════ -->
+  <!-- PAGE : ACCUEIL                         -->
+  <!-- ══════════════════════════════════════ -->
+  <div class="page active" id="page-accueil">
+    <div class="hero">
+      <div class="hero-content">
+        <div class="hero-badge">
+          <span class="dot"></span>
+          Gratuit &middot; Open source &middot; Sans pub
+        </div>
+
+        <img class="logo" src="logo.svg" alt="Logo Clom" width="80" height="80">
+
+        <h1>Clom</h1>
+        <p class="tagline">
+          Ta musique, <strong>ton player</strong>, tes playlists.<br>
+          Tout reste chez toi. Rien dans le cloud.
+        </p>
+        <p class="hero-desc">
+          Lecteur de musique personnel et gratuit. Ajoute tes morceaux
+          (YouTube, MP3, Spotify/Deezer), organise tes playlists.
+          Disponible sur PC et Android.
+        </p>
+
+        <div class="hero-btns">
+          <span class="btn-primary btn-disabled" title="Version PC en cours de developpement">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 12V6.75l6-1.32v6.48L3 12zm6.41.09l8.59.08V4.5L9.41 5.58v6.51zM3 13l6 .09v6.72l-6-1.31V13zm6.41.25L18 13.2v7.8l-8.59-1.08v-6.67z"/></svg>
+            Windows &mdash; bientot
+          </span>
+          <span class="btn-hint">Version PC en cours de developpement</span>
+
+          <a href="https://github.com/tomvivian28072005/maMusique/releases/download/v0.1.17.3/Clom.apk" class="btn-primary btn-android">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.6 9.48l1.84-3.18c.16-.31.04-.69-.27-.85-.31-.16-.69-.04-.85.27l-1.86 3.22c-1.44-.65-3.05-1.01-4.76-1.01s-3.32.36-4.76 1.01L5.09 5.72c-.16-.31-.54-.43-.85-.27-.31.16-.43.54-.27.85L5.81 9.48C2.73 11.06.48 14.09.48 17.65h23.04c0-3.56-2.25-6.59-5.33-8.17zM7 15.25c-.69 0-1.25-.56-1.25-1.25s.56-1.25 1.25-1.25 1.25.56 1.25 1.25-.56 1.25-1.25 1.25zm10 0c-.69 0-1.25-.56-1.25-1.25s.56-1.25 1.25-1.25 1.25.56 1.25 1.25-.56 1.25-1.25 1.25z"/></svg>
+            Android
+          </a>
+          <span class="btn-hint">Android 8+ &middot; ~15 Mo &middot; APK</span>
+        </div>
+
+        <div class="download-counter" id="dlCounter" style="display:none;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v12m0 0l-4-4m4 4l4-4M4 18h16"/></svg>
+          <span id="dlCount"></span> telechargements
+        </div>
+
+        <div class="warning-box">
+          <div class="wtitle">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M5.07 19h13.86c1.5 0 2.47-1.6 1.73-2.88L13.73 4.24c-.74-1.28-2.72-1.28-3.46 0L3.34 16.12C2.6 17.4 3.57 19 5.07 19z"/></svg>
+            Windows Defender
+          </div>
+          <p>
+            L'app n'est pas certifiee. Clique sur <strong>"Informations complementaires"</strong> puis <strong>"Executer quand meme"</strong>.
+          </p>
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- ── COMMENT CA MARCHE ── -->
-  <section>
-    <h2 class="section-title">Comment ca marche ?</h2>
-    <p class="section-sub">L'experience utilisateur en bref.</p>
+  <!-- ══════════════════════════════════════ -->
+  <!-- PAGE : COMMENT CA MARCHE               -->
+  <!-- ══════════════════════════════════════ -->
+  <div class="page" id="page-fonctionnement">
+    <section>
+      <h2 class="section-title">Comment ca marche</h2>
+      <p class="section-sub">Un lecteur de musique qui tourne sur tes appareils, sans cloud.</p>
 
-    <div class="ux-grid">
-      <div class="ux-card">
-        <h3>&#128187; Sur PC</h3>
-        <p>Tu installes Clom, ca lance un serveur local et l'app s'ouvre dans ton navigateur. Tu cherches un morceau par titre/artiste, Clom le telecharge depuis YouTube en MP3. Tu organises tes playlists, tes covers, tes favoris. Tout est stocke sur ton disque dur.</p>
-      </div>
-      <div class="ux-card">
-        <h3>&#128241; Sur telephone</h3>
-        <p>L'app Android se synchronise avec ton PC via Wi-Fi. Tes morceaux, playlists et covers sont copies sur le telephone. Ensuite tu ecoutes <strong>hors ligne</strong>, sans internet. Notification avec controles play/pause/next.</p>
-      </div>
-      <div class="ux-card">
-        <h3>&#127925; Player complet</h3>
-        <p>Lecture, shuffle, repeat, file d'attente, volume par morceau, paroles synchronisees, egaliseur, balance stereo, trim (couper debut/fin), covers personnalisees avec zoom/decalage.</p>
-      </div>
-      <div class="ux-card">
-        <h3>&#128274; 100% prive</h3>
-        <p>Pas de compte, pas d'abonnement, pas de tracking, pas de serveur distant. Tes donnees restent sur tes appareils. Le code source est ouvert et verifiable sur GitHub.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- ── INSTALLATION ── -->
-  <section>
-    <h2 class="section-title">Installation rapide</h2>
-    <p class="section-sub">Trois etapes et c'est pret.</p>
-
-    <div class="steps">
-      <div class="step">
-        <div class="step-num">1</div>
-        <div>
-          <h3>Telecharge et installe</h3>
-          <p>Clique sur le bouton de telechargement ci-dessus. Sur PC, lance l'installeur. Sur Android, installe l'APK (active "Sources inconnues" dans les parametres).</p>
+      <div class="card-grid">
+        <div class="card">
+          <h3>Sur PC</h3>
+          <p>Tu installes Clom, ca lance un serveur local et l'app s'ouvre dans ton navigateur. Tu cherches un morceau, Clom le telecharge depuis YouTube en MP3. Tout est stocke sur ton disque.</p>
+        </div>
+        <div class="card">
+          <h3>Sur telephone</h3>
+          <p>L'app Android se synchronise avec ton PC via Wi-Fi. Tes morceaux, playlists et covers sont copies sur le telephone pour l'ecoute hors ligne.</p>
+        </div>
+        <div class="card">
+          <h3>Player complet</h3>
+          <p>Shuffle, repeat, file d'attente, volume par morceau, paroles synchronisees, egaliseur, balance stereo, trim, covers personnalisees.</p>
+        </div>
+        <div class="card">
+          <h3>100% prive</h3>
+          <p>Pas de compte, pas d'abonnement, pas de tracking. Tes donnees restent sur tes appareils. Le code source est ouvert sur GitHub.</p>
         </div>
       </div>
-      <div class="step">
-        <div class="step-num">2</div>
-        <div>
-          <h3>Ajoute tes morceaux</h3>
-          <p>Cherche par titre/artiste, colle un lien YouTube, ou importe ta bibliotheque Deezer/Spotify via CSV. Le morceau est telecharge en quelques secondes.</p>
+
+      <div class="card-grid-3">
+        <div class="mini-card">
+          <div class="icon">&#128269;</div>
+          <h4>Recherche YouTube</h4>
+          <p>Tape un titre, telecharge en MP3.</p>
+        </div>
+        <div class="mini-card">
+          <div class="icon">&#127912;</div>
+          <h4>Playlists & covers</h4>
+          <p>Organise avec des couvertures custom.</p>
+        </div>
+        <div class="mini-card">
+          <div class="icon">&#128228;</div>
+          <h4>Import facile</h4>
+          <p>YouTube, CSV, ou dossier MP3.</p>
+        </div>
+        <div class="mini-card">
+          <div class="icon">&#128247;</div>
+          <h4>Mode fullscreen</h4>
+          <p>Cover animee + paroles.</p>
+        </div>
+        <div class="mini-card">
+          <div class="icon">&#128260;</div>
+          <h4>MAJ auto</h4>
+          <p>Se met a jour depuis GitHub.</p>
+        </div>
+        <div class="mini-card">
+          <div class="icon">&#128225;</div>
+          <h4>Sync Wi-Fi</h4>
+          <p>PC vers telephone, sans cable.</p>
         </div>
       </div>
-      <div class="step">
-        <div class="step-num">3</div>
-        <div>
-          <h3>Synchronise sur mobile</h3>
-          <p>Connecte ton telephone au meme Wi-Fi que ton PC. Scanne le QR code dans les parametres, et tous tes morceaux sont copies sur le telephone pour l'ecoute hors ligne.</p>
+
+      <div class="steps">
+        <h3 class="section-title" style="font-size:1.3rem;text-align:left;margin-bottom:0;">Installation</h3>
+        <div class="step">
+          <div class="step-num">1</div>
+          <div>
+            <h3>Telecharge et installe</h3>
+            <p>Sur PC, lance l'installeur. Sur Android, installe l'APK (active "Sources inconnues").</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div>
+            <h3>Ajoute tes morceaux</h3>
+            <p>Cherche par titre/artiste, colle un lien YouTube, ou importe depuis Deezer/Spotify.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div>
+            <h3>Synchronise sur mobile</h3>
+            <p>Meme Wi-Fi, scanne le QR code, tout est copie pour l'ecoute hors ligne.</p>
+          </div>
         </div>
       </div>
-    </div>
-  </section>
+    </section>
+  </div>
 
-  <!-- ── FEATURES ── -->
-  <section>
-    <h2 class="section-title">Tout ce qu'il faut</h2>
-    <p class="section-sub">Pas de compte, pas d'abonnement, pas de pub. Juste de la musique.</p>
+  <!-- ══════════════════════════════════════ -->
+  <!-- PAGE : POUR DEV                        -->
+  <!-- ══════════════════════════════════════ -->
+  <div class="page" id="page-dev">
+    <section>
+      <h2 class="section-title">Pour les developpeurs</h2>
+      <p class="section-sub">Code source ouvert sous licence AGPL v3.</p>
 
-    <div class="features">
-      <div class="feature">
-        <div class="feature-icon">&#128269;</div>
-        <h3>Recherche YouTube</h3>
-        <p>Tape un titre, Clom le trouve et le telecharge en MP3.</p>
-      </div>
-      <div class="feature">
-        <div class="feature-icon">&#127912;</div>
-        <h3>Playlists & covers</h3>
-        <p>Cree tes playlists avec des images de couverture custom.</p>
-      </div>
-      <div class="feature">
-        <div class="feature-icon">&#128228;</div>
-        <h3>Import facile</h3>
-        <p>Lien YouTube, fichier CSV (Deezer/Spotify), ou dossier MP3.</p>
-      </div>
-      <div class="feature">
-        <div class="feature-icon">&#128247;</div>
-        <h3>Mode fullscreen</h3>
-        <p>Vue immersive avec cover animee et paroles synchronisees.</p>
-      </div>
-      <div class="feature">
-        <div class="feature-icon">&#128260;</div>
-        <h3>Mises a jour auto</h3>
-        <p>L'app se met a jour toute seule depuis GitHub.</p>
-      </div>
-      <div class="feature">
-        <div class="feature-icon">&#128225;</div>
-        <h3>Sync Wi-Fi</h3>
-        <p>Synchronise PC et telephone via ton reseau local.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- ── DEVELOPPERS ── -->
-  <section>
-    <h2 class="section-title">Pour les developpeurs</h2>
-    <p class="section-sub">Le code source est ouvert. Contribue ou fork le projet.</p>
-
-    <div class="dev-box">
-      <h3>Lancer en mode developpement</h3>
-      <pre><span class="comment"># Clone le repo</span>
+      <div class="dev-box">
+        <h3>Lancer en local</h3>
+        <pre><span class="comment"># Clone le repo</span>
 git clone https://github.com/tomvivian28072005/maMusique.git
 cd maMusique
 
-<span class="comment"># Cree un venv Python et installe les dependances</span>
+<span class="comment"># Installe les dependances</span>
 python -m venv venv
 ./venv/Scripts/pip install -r requirements.txt
 
-<span class="comment"># Lance le serveur de dev</span>
-./venv/Scripts/python -m uvicorn main:app --host 127.0.0.1 --port 9000 --reload
+<span class="comment"># Lance le serveur</span>
+./venv/Scripts/python -m uvicorn main:app --host 127.0.0.1 --port 9000 --reload</pre>
 
-<span class="comment"># L'app s'ouvre sur http://localhost:9000</span></pre>
+        <p>
+          <strong>Stack :</strong> API <strong>FastAPI</strong> (Python) + frontend <strong>vanilla JS</strong> (un seul index.html).
+          Base <strong>SQLite</strong> via SQLAlchemy. Telechargement via <strong>yt-dlp + ffmpeg</strong>.
+          App Android via <strong>Capacitor</strong> avec SQLite local.
+        </p>
 
-      <p>
-        <strong>Architecture :</strong> le backend est une API <strong>FastAPI</strong> (Python) qui sert un frontend
-        <strong>vanilla JS</strong> (un seul fichier <code>index.html</code> de ~10 000 lignes). La base de donnees est <strong>SQLite</strong> via SQLAlchemy.
-        Le telechargement utilise <strong>yt-dlp + ffmpeg</strong>. L'app Android est un wrapper <strong>Capacitor</strong> avec SQLite local.
-      </p>
+        <div class="dev-stack">
+          <span>Python</span>
+          <span>FastAPI</span>
+          <span>SQLite</span>
+          <span>Vanilla JS</span>
+          <span>Tailwind CSS</span>
+          <span>Capacitor</span>
+          <span>yt-dlp</span>
+          <span>ffmpeg</span>
+        </div>
 
-      <div class="dev-stack">
-        <span>Python</span>
-        <span>FastAPI</span>
-        <span>SQLite</span>
-        <span>Vanilla JS</span>
-        <span>Tailwind CSS</span>
-        <span>Capacitor</span>
-        <span>yt-dlp</span>
-        <span>ffmpeg</span>
+        <p style="margin-top: 16px;">
+          <a href="https://github.com/tomvivian28072005/maMusique">Code source sur GitHub</a> &middot;
+          <a href="https://github.com/tomvivian28072005/maMusique/blob/main/LICENSE">Licence AGPL v3</a>
+        </p>
+      </div>
+    </section>
+  </div>
+
+  <!-- ══════════════════════════════════════ -->
+  <!-- PAGE : SUIVI                           -->
+  <!-- ══════════════════════════════════════ -->
+  <div class="page" id="page-suivi">
+    <section>
+      <h2 class="section-title">Suivi de l'application</h2>
+      <p class="section-sub">Telechargements, evolution et signalement de bugs.</p>
+
+      <div class="stats-box">
+        <div class="stats-total">
+          <span class="stats-number" id="statsTotal">&mdash;</span>
+          <span class="stats-label">telechargements au total</span>
+        </div>
+        <div class="stats-chart-wrap">
+          <canvas id="dlChart" width="800" height="220"></canvas>
+          <p class="stats-empty" id="statsEmpty" style="display:none;">Le graphique apparaitra apres quelques jours de donnees.</p>
+        </div>
       </div>
 
-      <p style="margin-top: 20px;">
-        &#128279; <a href="https://github.com/tomvivian28072005/maMusique">Code source sur GitHub</a>
-      </p>
-    </div>
-  </section>
+      <div class="bug-section">
+        <h3 class="section-title" style="font-size:1.3rem;">Signaler un bug ou proposer une idee</h3>
+        <p class="section-sub" style="margin-bottom:20px;">Deux moyens de nous contacter :</p>
 
-  <!-- ── STATISTIQUES ── -->
-  <section>
-    <h2 class="section-title">Telechargements</h2>
-    <p class="section-sub">Nombre total de telechargements depuis GitHub.</p>
-
-    <div class="stats-box">
-      <div class="stats-total">
-        <span class="stats-number" id="statsTotal">—</span>
-        <span class="stats-label">telechargements au total</span>
+        <div class="bug-btns">
+          <a href="https://discord.gg/UP6HaPwQ" class="discord-btn" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
+            Discord
+          </a>
+          <a href="https://github.com/tomvivian28072005/maMusique/issues" class="github-btn" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+            GitHub Issues
+          </a>
+        </div>
       </div>
-      <div class="stats-chart-wrap">
-        <canvas id="dlChart" width="800" height="260"></canvas>
-        <p class="stats-empty" id="statsEmpty" style="display:none;">Les donnees apparaitront apres quelques jours.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- ── DEFENDER WARNING ── -->
-  <section style="padding-top: 0;">
-    <div class="warning-box">
-      <div class="title">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M5.07 19h13.86c1.5 0 2.47-1.6 1.73-2.88L13.73 4.24c-.74-1.28-2.72-1.28-3.46 0L3.34 16.12C2.6 17.4 3.57 19 5.07 19z"/></svg>
-        Windows Defender
-      </div>
-      <p>
-        L'app n'est pas encore certifiee, donc Windows peut afficher un avertissement.
-        Clique sur <strong>"Informations complementaires"</strong> puis <strong>"Executer quand meme"</strong>.
-        Le code source est entierement ouvert et verifiable.
-      </p>
-    </div>
-  </section>
-
-  <!-- ── CONTACT / BUG REPORT ── -->
-  <section class="contact-section">
-    <h2 class="section-title">Un bug ? Une idee ?</h2>
-    <p class="section-sub">Rejoins le serveur Discord pour signaler des bugs ou proposer des fonctionnalites.</p>
-
-    <a href="https://discord.gg/UP6HaPwQ" class="discord-btn" target="_blank" rel="noopener">
-      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
-      Rejoindre le Discord
-    </a>
-  </section>
+    </section>
+  </div>
 
   <!-- ── FOOTER ── -->
   <footer>
     <p>
-      Fait avec soin par Tom Vivian<br>
-      <a href="https://github.com/tomvivian28072005/maMusique">Code source sur GitHub</a><br>
-      Licence <a href="https://github.com/tomvivian28072005/maMusique/blob/main/LICENSE">AGPL v3</a> &mdash; open source, libre et gratuit
+      Clom &middot; Tom Vivian &middot;
+      <a href="https://github.com/tomvivian28072005/maMusique">GitHub</a> &middot;
+      <a href="https://github.com/tomvivian28072005/maMusique/blob/main/LICENSE">AGPL v3</a>
     </p>
   </footer>
 
   <script>
-    // ── Total téléchargements (temps réel depuis GitHub API) ──
+    // ── Navigation ──
+    function showPage(name) {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.getElementById('page-' + name).classList.add('active');
+      document.querySelectorAll('.header-nav a').forEach(a => {
+        a.classList.toggle('active', a.dataset.page === name);
+      });
+      document.querySelector('.header-nav').classList.remove('open');
+      window.scrollTo(0, 0);
+    }
+
+    // ── Download count ──
     fetch('https://api.github.com/repos/tomvivian28072005/maMusique/releases')
       .then(r => r.json())
       .then(releases => {
@@ -708,7 +778,7 @@ python -m venv venv
       })
       .catch(() => {});
 
-    // ── Graphique par jour (depuis downloads.json mis à jour par GitHub Action) ──
+    // ── Chart ──
     fetch('downloads.json')
       .then(r => r.json())
       .then(data => {
@@ -717,16 +787,11 @@ python -m venv venv
           document.getElementById('dlChart').style.display = 'none';
           return;
         }
-
-        // Calcul des téléchargements par jour (différence entre jours consécutifs)
         const daily = [];
         for (let i = 1; i < data.length; i++) {
-          daily.push({
-            date: data[i].date,
-            count: Math.max(0, data[i].count - data[i-1].count)
-          });
+          daily.push({ date: data[i].date, count: Math.max(0, data[i].count - data[i-1].count) });
         }
-        if (daily.length === 0) return;
+        if (!daily.length) return;
 
         const canvas = document.getElementById('dlChart');
         const ctx = canvas.getContext('2d');
@@ -736,59 +801,37 @@ python -m venv venv
         canvas.height = rect.height * dpr;
         ctx.scale(dpr, dpr);
         const W = rect.width, H = rect.height;
-
-        const pad = { top: 20, right: 20, bottom: 36, left: 50 };
-        const cW = W - pad.left - pad.right;
-        const cH = H - pad.top - pad.bottom;
-
+        const pad = { top: 16, right: 16, bottom: 32, left: 44 };
+        const cW = W - pad.left - pad.right, cH = H - pad.top - pad.bottom;
         const maxVal = Math.max(...daily.map(d => d.count), 1);
-        const barW = Math.min(32, (cW / daily.length) * 0.7);
+        const barW = Math.min(28, (cW / daily.length) * 0.7);
         const gap = cW / daily.length;
 
-        // Grille horizontale
         ctx.strokeStyle = 'rgba(255,255,255,0.05)';
         ctx.lineWidth = 1;
         for (let i = 0; i <= 4; i++) {
           const y = pad.top + cH - (cH * i / 4);
-          ctx.beginPath();
-          ctx.moveTo(pad.left, y);
-          ctx.lineTo(W - pad.right, y);
-          ctx.stroke();
-          ctx.fillStyle = '#475569';
-          ctx.font = '11px Outfit, sans-serif';
-          ctx.textAlign = 'right';
-          ctx.fillText(Math.round(maxVal * i / 4), pad.left - 8, y + 4);
+          ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
+          ctx.fillStyle = '#475569'; ctx.font = '10px Outfit,sans-serif'; ctx.textAlign = 'right';
+          ctx.fillText(Math.round(maxVal * i / 4), pad.left - 6, y + 3);
         }
 
-        // Barres
         daily.forEach((d, i) => {
           const x = pad.left + i * gap + (gap - barW) / 2;
           const h = (d.count / maxVal) * cH;
           const y = pad.top + cH - h;
-
           const grad = ctx.createLinearGradient(x, y, x, pad.top + cH);
-          grad.addColorStop(0, '#2563eb');
-          grad.addColorStop(1, 'rgba(37,99,235,0.3)');
+          grad.addColorStop(0, '#2563eb'); grad.addColorStop(1, 'rgba(37,99,235,0.3)');
           ctx.fillStyle = grad;
-
-          // Barres arrondies en haut
           const r = Math.min(barW / 2, 4);
           ctx.beginPath();
-          ctx.moveTo(x + r, y);
-          ctx.lineTo(x + barW - r, y);
+          ctx.moveTo(x + r, y); ctx.lineTo(x + barW - r, y);
           ctx.quadraticCurveTo(x + barW, y, x + barW, y + r);
-          ctx.lineTo(x + barW, pad.top + cH);
-          ctx.lineTo(x, pad.top + cH);
-          ctx.lineTo(x, y + r);
-          ctx.quadraticCurveTo(x, y, x + r, y);
+          ctx.lineTo(x + barW, pad.top + cH); ctx.lineTo(x, pad.top + cH);
+          ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y);
           ctx.fill();
-
-          // Label date
-          ctx.fillStyle = '#475569';
-          ctx.font = '10px Outfit, sans-serif';
-          ctx.textAlign = 'center';
-          const label = d.date.slice(5); // MM-DD
-          ctx.fillText(label, x + barW / 2, pad.top + cH + 18);
+          ctx.fillStyle = '#475569'; ctx.font = '9px Outfit,sans-serif'; ctx.textAlign = 'center';
+          ctx.fillText(d.date.slice(5), x + barW / 2, pad.top + cH + 14);
         });
       })
       .catch(() => {
