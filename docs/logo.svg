@@ -5,10 +5,7 @@
       <stop offset="100%" stop-color="#1e3a8a"/>
     </linearGradient>
   </defs>
-  <!-- T haut-gauche -->
-  <rect x="10" y="12" width="22" height="4.5" rx="2" fill="#fff"/>
-  <rect x="18.75" y="12" width="4.5" height="22" rx="2" fill="#fff"/>
-  <!-- T bas-droite (symétrique en rotation 180°) -->
-  <rect x="32" y="47.5" width="22" height="4.5" rx="2" fill="#fff"/>
-  <rect x="40.75" y="30" width="4.5" height="22" rx="2" fill="#fff"/>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#mm-grad)"/>
+  <path d="M23 17v28.4a7.6 7.6 0 1 0 4.6 7V27.4h14.2V17H23z" fill="#ffffff"/>
+  <circle cx="50" cy="18" r="4" fill="#0ea5e9"/>
 </svg>

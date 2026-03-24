@@ -387,6 +387,23 @@
     footer a { color: #2563eb; text-decoration: none; }
     footer a:hover { text-decoration: underline; }
 
+    /* ── Download counter ── */
+    .download-counter {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 18px;
+      border-radius: 100px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      font-size: 0.85rem;
+      color: #94a3b8;
+      font-weight: 500;
+      margin-top: 8px;
+    }
+    .download-counter svg { color: #60a5fa; }
+    .download-counter span { color: #fff; font-weight: 700; }
+
     /* ── Responsive ── */
     @media (max-width: 640px) {
       h1 { font-size: 2.8rem; }
@@ -409,15 +426,7 @@
         Gratuit &middot; Open source &middot; Sans pub
       </div>
 
-      <svg class="logo" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-        <!-- Juste les 2 T diagonales, sans fond -->
-        <!-- T haut-gauche -->
-        <rect x="10" y="12" width="22" height="4.5" rx="2" fill="#2563eb"/>
-        <rect x="18.75" y="12" width="4.5" height="22" rx="2" fill="#2563eb"/>
-        <!-- T bas-droite (rotation 180) -->
-        <rect x="32" y="47.5" width="22" height="4.5" rx="2" fill="#2563eb"/>
-        <rect x="40.75" y="30" width="4.5" height="22" rx="2" fill="#2563eb"/>
-      </svg>
+      <img class="logo" src="logo.svg" alt="Logo Clom" width="88" height="88">
 
       <h1>Clom</h1>
       <p class="tagline">
@@ -442,6 +451,11 @@
           Telecharger pour Android
         </a>
         <span class="btn-secondary">Android 8+ &middot; ~15 Mo &middot; APK</span>
+      </div>
+
+      <div class="download-counter" id="dlCounter" style="display:none;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v12m0 0l-4-4m4 4l4-4M4 18h16"/></svg>
+        <span id="dlCount"></span> telechargements
       </div>
     </div>
 
@@ -622,5 +636,20 @@ python -m venv venv
     </p>
   </footer>
 
+  <script>
+    fetch('https://api.github.com/repos/tomvivian28072005/maMusique/releases')
+      .then(r => r.json())
+      .then(releases => {
+        let total = 0;
+        for (const r of releases) {
+          for (const a of r.assets || []) total += a.download_count;
+        }
+        if (total > 0) {
+          document.getElementById('dlCount').textContent = total.toLocaleString('fr-FR');
+          document.getElementById('dlCounter').style.display = 'inline-flex';
+        }
+      })
+      .catch(() => {});
+  </script>
 </body>
 </html>
