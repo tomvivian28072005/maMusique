@@ -8237,16 +8237,44 @@
     async function mobInstallUpdate() {
       if (!_mobileUpdateUrl) return;
       const text = document.getElementById('mob-update-text');
-      if (text) text.textContent = 'Ouverture du téléchargement…';
-      // Ouvrir le lien dans le navigateur externe
-      if (window.Capacitor && window.Capacitor.Plugins.Browser) {
-        await window.Capacitor.Plugins.Browser.open({ url: _mobileUpdateUrl });
-      } else {
-        window.open(_mobileUpdateUrl, '_system');
+      const btn = document.getElementById('mob-update-btn');
+      if (btn) btn.onclick = null; // disable re-click
+      try {
+        if (text) text.textContent = 'Téléchargement en cours…';
+        // Download APK via fetch
+        const resp = await fetch(_mobileUpdateUrl);
+        if (!resp.ok) throw new Error('Téléchargement échoué');
+        const blob = await resp.blob();
+        const reader = new FileReader();
+        const base64 = await new Promise((resolve, reject) => {
+          reader.onload = () => resolve(reader.result.split(',')[1]);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+        // Write APK to app's external files directory
+        const { Filesystem } = window.Capacitor.Plugins;
+        const FolderPicker = window.Capacitor.Plugins.FolderPicker;
+        const folderRes = await FolderPicker.getClomFolderPath();
+        const apkDir = folderRes.path.replace(/\/Clom\/downloads$/, '');
+        const apkPath = apkDir + '/update.apk';
+        // Write via Filesystem to EXTERNAL directory
+        await Filesystem.writeFile({
+          path: 'update.apk',
+          data: base64,
+          directory: 'EXTERNAL'
+        });
+        if (text) text.textContent = 'Installation…';
+        // Get actual file path and install
+        const extPath = apkDir + '/update.apk';
+        await FolderPicker.installApk({ path: extPath });
+      } catch (e) {
+        console.error('Update failed:', e);
+        if (text) text.textContent = 'Erreur : ' + (e.message || 'échec');
+        if (btn) btn.onclick = mobInstallUpdate;
+        setTimeout(() => {
+          if (text) text.textContent = `Mise à jour v${_mobileUpdateVersion}`;
+        }, 4000);
       }
-      setTimeout(() => {
-        if (text) text.textContent = `Mise à jour v${_mobileUpdateVersion}`;
-      }, 3000);
     }
 
     // ── Capacitor: config serveur ───────────────────────

@@ -4,8 +4,11 @@ import android.app.Activity;
 import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.Build;
 import android.provider.DocumentsContract;
 import android.util.Base64;
+
+import androidx.core.content.FileProvider;
 
 import androidx.activity.result.ActivityResult;
 
@@ -190,6 +193,32 @@ public class FolderPickerPlugin extends Plugin {
             }
         } catch (Exception e) {
             call.reject(e.getMessage());
+        }
+    }
+
+    @PluginMethod
+    public void installApk(PluginCall call) {
+        String filePath = call.getString("path");
+        if (filePath == null) { call.reject("Missing path"); return; }
+
+        try {
+            java.io.File apkFile = new java.io.File(filePath);
+            if (!apkFile.exists()) { call.reject("APK file not found"); return; }
+
+            Uri apkUri = FileProvider.getUriForFile(
+                getContext(),
+                getContext().getPackageName() + ".fileprovider",
+                apkFile
+            );
+
+            Intent intent = new Intent(Intent.ACTION_VIEW);
+            intent.setDataAndType(apkUri, "application/vnd.android.package-archive");
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(intent);
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("Install failed: " + e.getMessage());
         }
     }
 }
