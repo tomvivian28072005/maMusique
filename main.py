@@ -169,7 +169,7 @@ async def lifespan(app: FastAPI):
     cleanup_task.cancel()
 
 
-APP_VERSION = "0.1.17.2"
+APP_VERSION = "0.1.17.3"
 
 app = FastAPI(title="Clom", version=APP_VERSION, lifespan=lifespan)
 

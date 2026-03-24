@@ -148,6 +148,11 @@
     body.theme-light .to-gray-800 { --tw-gradient-to: #e5e7eb !important; }
     /* Track covers without image */
     body.theme-light .bg-white\/5 { background: rgba(0,0,0,0.05) !important; }
+    /* Sticky search bar background */
+    body.theme-light .bg-\[\#050508\]\/90 { background: rgba(245,245,247,0.92) !important; }
+    /* Selection bars (inline bg overrides) */
+    body.theme-light #mob-selection-bar { background: rgba(245,245,247,0.95) !important; border-bottom-color: rgba(0,0,0,0.1) !important; color: #111 !important; }
+    body.theme-light #playlist-select-bar { background: rgba(245,245,247,0.95) !important; }
     /* Shadows — lighter in light mode */
     body.theme-light .shadow-2xl { box-shadow: 0 10px 40px rgba(0,0,0,0.12) !important; }
     body.theme-amoled { --bg-color: #000; --sidebar-bg: rgba(0,0,0,0.95); --player-bg: rgba(0,0,0,0.95); }
@@ -2445,7 +2450,7 @@
     // ── Capacitor (mobile) ────────────────────────────────
     const _isCapacitor = typeof window.Capacitor !== 'undefined';
     const _isOfflineMode = _isCapacitor; // mobile = offline (DB locale)
-    const MOBILE_APP_VERSION = '0.1.17.2';
+    const MOBILE_APP_VERSION = '0.1.17.3';
     let API_BASE = '';
     let _localDbReady = false;
 
