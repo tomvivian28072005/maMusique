@@ -2438,7 +2438,7 @@
     // ── Capacitor (mobile) ────────────────────────────────
     const _isCapacitor = typeof window.Capacitor !== 'undefined';
     const _isOfflineMode = _isCapacitor; // mobile = offline (DB locale)
-    const MOBILE_APP_VERSION = '0.1.17';
+    const MOBILE_APP_VERSION = '0.1.17.1';
     let API_BASE = '';
     let _localDbReady = false;
 
@@ -9996,7 +9996,8 @@
       aboutEl.innerHTML = `
         <div class="bg-gray-900 border border-gray-700 rounded-xl p-6 w-full max-w-xs mx-4 shadow-2xl text-center">
           <h3 class="text-lg font-bold text-white mb-2">Clom</h3>
-          <p class="text-sm text-gray-400 mb-4">Lecteur de musique personnel</p>
+          <p class="text-sm text-gray-400 mb-1">Lecteur de musique personnel</p>
+          <p class="text-xs text-gray-500 mb-4">Application open source</p>
           <p id="about-version" class="text-xs text-gray-500 mb-4">Version ...</p>
           <button onclick="this.closest('.fixed').style.display='none'"
             class="px-4 py-2 rounded-lg text-sm font-semibold bg-brand-600 hover:bg-brand-700 text-white transition">OK</button>
