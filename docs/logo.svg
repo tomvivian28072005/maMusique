@@ -1,7 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" role="img" aria-label="Logo Clom">
-  <rect x="10" y="10" width="88" height="88" rx="18" fill="#f8f9fa"/>
-  <!-- Chevron gauche (pointe vers la droite) > -->
-  <polyline points="36,68 54,50 36,32" fill="none" stroke="#4FC3F7" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
-  <!-- Chevron droit (pointe vers la gauche) < -->
-  <polyline points="72,32 54,50 72,68" fill="none" stroke="#4FC3F7" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Logo Clom">
+  <rect width="64" height="64" rx="13" fill="#f0f2f5"/>
+  <defs>
+    <mask id="weave">
+      <rect width="64" height="64" fill="white"/>
+      <!-- Cut a diagonal band where arrow2 passes over arrow1 -->
+      <line x1="18" y1="49" x2="33" y2="34" stroke="black" stroke-width="9" stroke-linecap="round"/>
+    </mask>
+  </defs>
+  <!-- Arrow 1: top-left → bottom-right (masked where arrow2 crosses over) -->
+  <line x1="21" y1="19" x2="43" y2="41" stroke="#52C3F5" stroke-width="7.5" stroke-linecap="round" mask="url(#weave)"/>
+  <!-- Arrow 2: bottom-left → top-right (fully on top) -->
+  <line x1="21" y1="45" x2="43" y2="23" stroke="#52C3F5" stroke-width="7.5" stroke-linecap="round"/>
 </svg>
