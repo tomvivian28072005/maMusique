@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://tomvivian28072005.github.io/maMusique/sitemap.xml
