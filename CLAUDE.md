@@ -29,9 +29,9 @@ Tom est un jeune dev français, autodidacte, qui code son propre lecteur de musi
 | `main.py` | App FastAPI (~1250 lignes) : toutes les routes API, logique download, import, mise à jour |
 | `index.html` | SPA frontend (~4800 lignes) : HTML + CSS + JS inline |
 | `database.py` | Modèles SQLAlchemy (Track, Playlist, PlaylistTrack) + CRUD |
-| `launcher.py` | Point d'entrée PyInstaller : redirige stdout/stderr, lance uvicorn, ouvre navigateur |
-| `build.py` | Script de build : PyInstaller + copie outils (yt-dlp, ffmpeg, node) + Inno Setup |
-| `installer.iss` | Config Inno Setup (installeur Windows) |
+| `desktop/launcher.py` | Point d'entrée PyInstaller : redirige stdout/stderr, lance uvicorn, ouvre navigateur |
+| `desktop/build.py` | Script de build : PyInstaller + copie outils (yt-dlp, ffmpeg, node) + Inno Setup |
+| `desktop/installer.iss` | Config Inno Setup (installeur Windows) |
 | `docs/index.html` | Landing page GitHub Pages (tomvivian28072005.github.io/maMusique) |
 
 ### Design
@@ -49,9 +49,9 @@ Chaque nouvelle version suit ce processus exact :
 1. **Modifier le code** (la feature ou le fix)
 2. **Bumper la version** dans 3 fichiers :
    - `main.py` : `APP_VERSION = "x.y.z"`
-   - `installer.iss` : `AppVersion=x.y.z`
+   - `desktop/installer.iss` : `AppVersion=x.y.z`
    - `docs/index.html` : lien de téléchargement `releases/download/vx.y.z/Clom-setup.exe`
-3. **Build** : `./venv/Scripts/python build.py` (~2-3 min, produit `dist/Clom-setup.exe` ~161 Mo)
+3. **Build** : `./venv/Scripts/python desktop/build.py` (~2-3 min, produit `dist/Clom-setup.exe` ~161 Mo)
 4. **Commit + push** : `git add` les fichiers modifiés, commit avec message en français, push
 5. **Tom crée la release** sur GitHub manuellement et y joint `Clom-setup.exe`
 
@@ -120,7 +120,7 @@ Tous les `subprocess.run()` utilisent `creationflags=_NO_WINDOW` (`0x08000000`) 
 ./venv/Scripts/python -m uvicorn main:app --host 127.0.0.1 --port 9000 --reload
 
 # Build complet (PyInstaller + Inno Setup)
-./venv/Scripts/python build.py
+./venv/Scripts/python desktop/build.py
 
 # L'installeur produit se trouve dans dist/Clom-setup.exe
 ```
